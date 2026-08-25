@@ -1,0 +1,346 @@
+/* ═══════════════════════════════════════════════
+   ATLAS DESIGN SYSTEM v2 — 8 Themes + Glass Orb
+   ═══════════════════════════════════════════════ */
+
+@import 'tailwindcss';
+
+/* ─── فونت‌ها ─── */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('./assets/fonts/Vazirmatn-Variable.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('./assets/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* ═════════ ۸ تم — هر کدام یک دنیا ═════════ */
+
+/* ۱. نیمهشب — پیشفرض، آبی عمیق */
+:root, [data-theme='midnight'] {
+  --bg-base: #05060a;
+  --bg-glow-1: rgba(108, 140, 255, 0.16);
+  --bg-glow-2: rgba(160, 120, 255, 0.12);
+  --orb-grad: radial-gradient(circle at 32% 28%, #b7c6ff 0%, #6c8cff 32%, #4f46e5 62%, #1e1b4b 100%);
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --text-primary: #eef1f8;
+  --text-secondary: #9aa3b8;
+  --accent: #6c8cff;
+  --accent-soft: rgba(108, 140, 255, 0.18);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* ۲. شفق — سبز-فیروزهای تاریک */
+[data-theme='aurora'] {
+  --bg-base: #03100c;
+  --bg-glow-1: rgba(52, 211, 153, 0.15);
+  --bg-glow-2: rgba(45, 212, 191, 0.12);
+  --orb-grad: radial-gradient(circle at 32% 28%, #d1fae5 0%, #34d399 34%, #0d9488 62%, #042f2e 100%);
+  --glass-bg: rgba(220, 255, 245, 0.05);
+  --glass-border: rgba(180, 255, 230, 0.11);
+  --glass-highlight: rgba(220, 255, 245, 0.13);
+  --text-primary: #e7fff5;
+  --text-secondary: #86c9b2;
+  --accent: #34d399;
+  --accent-soft: rgba(52, 211, 153, 0.16);
+}
+
+/* ۳. کاغذی — گرم و روشن */
+[data-theme='paper'] {
+  --bg-base: #f6f1e7;
+  --bg-glow-1: rgba(214, 178, 122, 0.18);
+  --bg-glow-2: rgba(235, 205, 165, 0.22);
+  --orb-grad: radial-gradient(circle at 32% 28%, #fff7ea 0%, #f0c987 36%, #c68a3d 66%, #6b4413 100%);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(120, 95, 60, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --text-primary: #35301f;
+  --text-secondary: #8a7d63;
+  --shadow-glass: 0 8px 32px rgba(120, 95, 60, 0.14);
+}
+
+/* ۴. لاوندری — الهام ZAY-G، رویایی روشن */
+[data-theme='lavender'] {
+  --bg-base: #eef0fb;
+  --bg-glow-1: rgba(139, 152, 245, 0.22);
+  --bg-glow-2: rgba(196, 181, 253, 0.25);
+  --orb-grad: radial-gradient(circle at 32% 28%, #e0e7ff 0%, #8b98f5 36%, #6366f1 64%, #312e81 100%);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(99, 102, 241, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --text-primary: #2b2d42;
+  --text-secondary: #7c7f9a;
+  --shadow-glass: 0 8px 36px rgba(99, 102, 241, 0.14);
+}
+
+/* ۵. غروب — الهام Aira، نارنجی سینمایی تاریک */
+[data-theme='sunset'] {
+  --bg-base: #0a0402;
+  --bg-glow-1: rgba(249, 115, 22, 0.2);
+  --bg-glow-2: rgba(234, 88, 12, 0.14);
+  --orb-grad: radial-gradient(circle at 32% 28%, #fed7aa 0%, #f97316 36%, #c2410c 64%, #431407 100%);
+  --glass-bg: rgba(255, 240, 230, 0.05);
+  --glass-border: rgba(251, 146, 60, 0.16);
+  --glass-highlight: rgba(255, 224, 200, 0.15);
+  --text-primary: #fff1e7;
+  --text-secondary: #c8a08a;
+  --accent: #f97316;
+  --accent-soft: rgba(249, 115, 22, 0.16);
+}
+
+/* ۶. اقیانوس — آبی اقیانوسی عمیق */
+[data-theme='ocean'] {
+  --bg-base: #020c18;
+  --bg-glow-1: rgba(14, 165, 233, 0.16);
+  --bg-glow-2: rgba(6, 182, 212, 0.12);
+  --orb-grad: radial-gradient(circle at 32% 28%, #bae6fd 0%, #0ea5e9 36%, #0369a1 64%, #082f49 100%);
+  --glass-bg: rgba(224, 242, 254, 0.05);
+  --glass-border: rgba(125, 211, 252, 0.12);
+  --glass-highlight: rgba(224, 242, 254, 0.13);
+  --text-primary: #e0f2fe;
+  --text-secondary: #7da8c4;
+  --accent: #0ea5e9;
+  --accent-soft: rgba(14, 165, 233, 0.16);
+}
+
+/* ۷. رز — صورتی ملایم روشن */
+[data-theme='rose'] {
+  --bg-base: #fdf2f6;
+  --bg-glow-1: rgba(244, 114, 182, 0.18);
+  --bg-glow-2: rgba(251, 207, 232, 0.22);
+  --orb-grad: radial-gradient(circle at 32% 28%, #fce7f3 0%, #f472b6 36%, #db2777 64%, #831843 100%);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(219, 39, 119, 0.13);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --text-primary: #3d2230;
+  --text-secondary: #a17a8c;
+  --shadow-glass: 0 8px 36px rgba(219, 39, 119, 0.12);
+}
+
+/* ۸. جنگل — سبز تیره مخملی */
+[data-theme='forest'] {
+  --bg-base: #060d07;
+  --bg-glow-1: rgba(74, 222, 128, 0.13);
+  --bg-glow-2: rgba(163, 230, 53, 0.09);
+  --orb-grad: radial-gradient(circle at 32% 28%, #dcfce7 0%, #4ade80 36%, #16a34a 64%, #14532d 100%);
+  --glass-bg: rgba(240, 255, 244, 0.05);
+  --glass-border: rgba(134, 239, 172, 0.11);
+  --glass-highlight: rgba(240, 255, 244, 0.12);
+  --text-primary: #ecfdf5;
+  --text-secondary: #8bb89c;
+  --accent: #4ade80;
+  --accent-soft: rgba(74, 222, 128, 0.14);
+}
+
+/* ─── پایه ─── */
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Geist', 'Vazirmatn', system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.6s ease, color 0.6s ease;
+}
+code, pre, .font-mono {
+  font-family: 'Geist Mono', monospace;
+  direction: ltr;
+}
+
+/* ─── پسزمینه زنده ─── */
+.atlas-aurora-bg { position: fixed; inset: 0; z-index: -2; overflow: hidden; }
+.atlas-aurora-bg::before, .atlas-aurora-bg::after {
+  content: ''; position: absolute;
+  width: 55vmax; height: 55vmax; border-radius: 50%;
+  filter: blur(90px); will-change: transform;
+  transition: background 0.8s ease;
+}
+.atlas-aurora-bg::before {
+  background: var(--bg-glow-1); top: -20%; right: -10%;
+  animation: drift-a 26s ease-in-out infinite alternate;
+}
+.atlas-aurora-bg::after {
+  background: var(--bg-glow-2); bottom: -25%; left: -15%;
+  animation: drift-b 32s ease-in-out infinite alternate;
+}
+@keyframes drift-a { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-8%,10%,0) scale(1.15); } }
+@keyframes drift-b { from { transform: translate3d(0,0,0) scale(1.1); } to { transform: translate3d(10%,-8%,0) scale(0.95); } }
+
+.atlas-grain {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ═════════ شیشه ═════════ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass), inset 0 1px 0 var(--glass-highlight);
+}
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(36px) saturate(1.5);
+  -webkit-backdrop-filter: blur(36px) saturate(1.5);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass), inset 0 1px 0 var(--glass-highlight);
+}
+.glass-hover {
+  transition: transform 0.5s cubic-bezier(0.32,0.72,0,1), box-shadow 0.5s cubic-bezier(0.32,0.72,0,1),
+    border-color 0.4s ease, background 0.4s ease;
+}
+.glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 12px 44px color-mix(in srgb, var(--accent) 16%, transparent), inset 0 1px 0 var(--glass-highlight);
+}
+.glass-hover:active { transform: translateY(0) scale(0.985); }
+.glass-accent-ring {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 8px 40px color-mix(in srgb, var(--accent) 12%, transparent), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* ═════════ 🏐 گوی شیشهای اطلس — با چشم! ═════════ */
+.atlas-orb {
+  position: relative;
+  border-radius: 50%;
+  background: var(--orb-grad);
+  box-shadow:
+    inset -8px -14px 32px rgba(0, 0, 0, 0.35),
+    inset 6px 10px 24px rgba(255, 255, 255, 0.28),
+    0 18px 60px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: orb-float 5.5s ease-in-out infinite;
+  transition: box-shadow 0.6s ease;
+}
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-10px) scale(1.03); }
+}
+/* برق شیشهای روی گوی */
+.atlas-orb::before {
+  content: ''; position: absolute; top: 12%; left: 18%;
+  width: 34%; height: 22%; border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.75), rgba(255,255,255,0.05));
+  filter: blur(3px); transform: rotate(-24deg);
+}
+/* چشمها — دو برگ سفید درخشان مثل نمونهها */
+.orb-eyes {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 14%;
+  padding-bottom: 6%;
+}
+.orb-eye {
+  width: 17%; height: 20%;
+  background: #fff;
+  border-radius: 58% 42% 55% 45% / 62% 58% 42% 38%;
+  box-shadow: 0 0 14px rgba(255,255,255,0.85), inset 0 -2px 4px rgba(0,0,0,0.12);
+  animation: eye-blink 4.2s ease-in-out infinite;
+  transform-origin: center;
+}
+.orb-eye:last-child { animation-delay: 0.05s; }
+@keyframes eye-blink {
+  0%, 91%, 97%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.08); }
+}
+/* حالت فکر کردن: چشمها نیمبسته و نگاه به بالا */
+.atlas-orb[data-state='thinking'] { animation-duration: 2.6s; }
+.atlas-orb[data-state='thinking'] .orb-eye {
+  transform: scaleY(0.45) translateY(-18%);
+  animation: none;
+}
+/* حالت شنیدن: هاله تنفسی */
+.atlas-orb[data-state='listening'] {
+  animation: orb-listen 1.6s ease-in-out infinite;
+}
+@keyframes orb-listen {
+  0%, 100% { box-shadow: inset -8px -14px 32px rgba(0,0,0,0.35), inset 6px 10px 24px rgba(255,255,255,0.28), 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent), 0 18px 60px color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { box-shadow: inset -8px -14px 32px rgba(0,0,0,0.35), inset 6px 10px 24px rgba(255,255,255,0.28), 0 0 0 22px transparent, 0 18px 60px color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+/* سایه زیر گوی */
+.orb-shadow {
+  width: 55%; height: 12px; margin: 14px auto 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+  animation: shadow-breathe 5.5s ease-in-out infinite;
+}
+@keyframes shadow-breathe {
+  0%, 100% { transform: scaleX(1); opacity: 0.9; }
+  50%      { transform: scaleX(0.82); opacity: 0.55; }
+}
+
+/* ─── انیمیشن ورود ─── */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.rise-in { animation: rise-in 0.65s cubic-bezier(0.32,0.72,0,1) both; }
+.stagger-1 { animation-delay: 0.06s } .stagger-2 { animation-delay: 0.13s }
+.stagger-3 { animation-delay: 0.21s } .stagger-4 { animation-delay: 0.30s }
+.stagger-5 { animation-delay: 0.4s }  .stagger-6 { animation-delay: 0.52s }
+
+/* ─── نقطههای تایپ ─── */
+@keyframes glow-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+.typing-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: glow-pulse 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s }
+.typing-dot:nth-child(3) { animation-delay: 0.3s }
+
+/* ─── کارت تم (مثل Serene Current) ─── */
+.theme-card {
+  position: relative; overflow: hidden;
+  border-radius: 1.4rem; cursor: pointer;
+  aspect-ratio: 16 / 10;
+  border: 2px solid transparent;
+  transition: transform 0.5s cubic-bezier(0.32,0.72,0,1), border-color 0.3s ease, box-shadow 0.5s ease;
+}
+.theme-card:hover { transform: translateY(-4px) scale(1.02); }
+.theme-card[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), 0 14px 40px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.theme-card .theme-bg {
+  position: absolute; inset: 0;
+  transition: transform 0.7s cubic-bezier(0.32,0.72,0,1);
+}
+.theme-card:hover .theme-bg { transform: scale(1.08); }
+.theme-card .theme-name {
+  position: absolute; bottom: 12px; right: 14px;
+  color: #fff; font-weight: 600; font-size: 0.9rem;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.45);
+}
+
+/* ─── اسکرولبار ─── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: 99px; border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 48%, transparent); background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-aurora-bg::before, .atlas-aurora-bg::after, .atlas-orb, .orb-eye, .orb-shadow { animation: none !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
