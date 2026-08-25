@@ -19,6 +19,7 @@ export function Welcome(): React.JSX.Element {
   const aui = useAui()
   const isRunning = useAuiState(s => s.thread.isRunning)
   const [text, setText] = useState('')
+  const [hint, setHint] = useState('')
 
   const send = (value: string): void => {
     const v = value.trim()
@@ -63,7 +64,21 @@ export function Welcome(): React.JSX.Element {
           />
           <div className="flex items-center gap-1 px-1 pb-1">
             {[Paperclip, Globe, Sparkles, Code2].map((Icon, i) => (
-              <button key={i} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="بهزودی">
+              <button
+                key={i}
+                onClick={() => {
+                  const hints = [
+                    'پیوست فایل در فاز بعدی فعال میشود — فعلاً متن/کد بفرست',
+                    'جستوجوی وب در فاز بعدی فعال میشود',
+                    'مهارتها را از فروشگاه سایدبار نصب کن 🧩',
+                    'اجرای کد در فاز بعدی فعال میشود'
+                  ]
+                  setHint(hints[i])
+                }}
+                className="rounded-xl p-2 transition-all hover:scale-110"
+                style={{ color: 'var(--text-secondary)' }}
+                title="اطلاعات"
+              >
                 <Icon size={16} />
               </button>
             ))}
@@ -78,14 +93,20 @@ export function Welcome(): React.JSX.Element {
               </button>
             ) : (
               <button
+                onClick={() => setHint('ورودی صوتی در فاز بعدی فعال میشود 🎙️')}
                 className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-105"
                 style={{ background: 'var(--accent)' }}
-                title="ورودی صوتی (بهزودی)"
+                title="ورودی صوتی"
               >
                 <Mic size={16} />
               </button>
             )}
           </div>
+          {hint && (
+            <p className="mt-1.5 px-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              💡 {hint}
+            </p>
+          )}
         </div>
 
         {/* چیپهای پیشنهاد — ارسال واقعی */}

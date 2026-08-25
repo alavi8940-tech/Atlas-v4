@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { AtlasThread } from '@/components/AtlasThread'
+import { Thread } from '@/components/assistant-ui/thread'
 import { Welcome } from '@/components/Welcome'
 import { SettingsDialog } from '@/components/SettingsDialog'
 import {
@@ -160,7 +160,7 @@ function App(): React.JSX.Element {
           </div>
 
           <div className="min-h-0 flex-1">
-            {hasStarted ? <AtlasThread /> : <Welcome />}
+            {hasStarted ? <Thread /> : <Welcome />}
           </div>
         </main>
       </div>
