@@ -28,7 +28,8 @@ function createWindow() {
   Menu.setApplicationMenu(null)
 
   win.once('ready-to-show', () => win.show())
-  win.loadFile(path.join(__dirname, 'dist', 'index.html'))
+  // dist در ریشهٔ پروژه ساخته میشود (vite build)
+  win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
 
   // لینکهای خارجی فقط در مرورگر پیشفرض سیستم
   win.webContents.setWindowOpenHandler(({ url }) => {

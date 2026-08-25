@@ -10,6 +10,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    // مسیر نسبی — الزامی برای لود شدن داراییها در پروتکل file:// الکترون
+    base: './',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')
