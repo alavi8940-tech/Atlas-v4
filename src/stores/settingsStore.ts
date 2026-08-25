@@ -48,10 +48,10 @@ export const THEMES: ThemeMeta[] = [
   }
 ]
 
-/* ═════════ تنظیمات مدل (بخش ۳ مستند — نسخهٔ فاز ۱) ═════════ */
+/* ═════════ تنظیمات مدل — نسخهٔ فاز ۲ ═════════ */
 
-/** حالتهای موتور: نمایشی، Ollama محلی، یا هر سرویس سازگار با OpenAI */
-export type ProviderKind = 'demo' | 'ollama' | 'openai'
+/** پروتکل موتور: سازگار با OpenAI، Ollama محلی، یا API رسمی Anthropic */
+export type ProviderKind = 'openai' | 'ollama' | 'anthropic'
 
 export interface ModelSettings {
   provider: ProviderKind
@@ -62,21 +62,21 @@ export interface ModelSettings {
   apiBaseURL: string
   apiKey: string
   apiModel: string
-  /** پارامترهای تولید */
-  temperature: number
-  maxTokens: number
+  /** Anthropic رسمی — پایگاهنشانی پیشفرض خود SDK استفاده میشود */
+  anthropicApiKey: string
+  anthropicModel: string
   systemPrompt: string
 }
 
 export const DEFAULT_MODEL_SETTINGS: ModelSettings = {
-  provider: 'demo',
+  provider: 'ollama',
   ollamaBaseURL: 'http://localhost:11434/v1',
-  ollamaModel: 'qwen3:8b',
+  ollamaModel: '',
   apiBaseURL: 'http://localhost:4000/v1',
   apiKey: '',
-  apiModel: 'gpt-4o-mini',
-  temperature: 0.7,
-  maxTokens: 2048,
+  apiModel: '',
+  anthropicApiKey: '',
+  anthropicModel: '',
   systemPrompt:
     'تو «Atlas» هستی، دستیار هوشمند محلی کاربر. فارسی روان پاسخ میدهی، ' +
     'کوتاه و دقیق هستی و برای کد از بلوک مارکداون استفاده میکنی. ' +
@@ -108,7 +108,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'atlas-settings',
-      version: 1,
+      version: 2,
       // orbState گذراست و نباید ذخیره شود
       partialize: s => ({
         theme: s.theme,
@@ -118,8 +118,8 @@ export const useSettingsStore = create<SettingsState>()(
         apiBaseURL: s.apiBaseURL,
         apiKey: s.apiKey,
         apiModel: s.apiModel,
-        temperature: s.temperature,
-        maxTokens: s.maxTokens,
+        anthropicApiKey: s.anthropicApiKey,
+        anthropicModel: s.anthropicModel,
         systemPrompt: s.systemPrompt
       })
     }
@@ -136,18 +136,27 @@ export function getModelSettings(): ModelSettings {
     apiBaseURL: s.apiBaseURL,
     apiKey: s.apiKey,
     apiModel: s.apiModel,
-    temperature: s.temperature,
-    maxTokens: s.maxTokens,
+    anthropicApiKey: s.anthropicApiKey,
+    anthropicModel: s.anthropicModel,
     systemPrompt: s.systemPrompt
+  }
+}
+
+/** نام مدل فعال بر اساس پروتکل — برای نمایش در نوار بالا و تست اتصال */
+export function activeModelName(s: Pick<ModelSettings, 'provider' | 'ollamaModel' | 'apiModel' | 'anthropicModel'>): string {
+  switch (s.provider) {
+    case 'ollama': return s.ollamaModel
+    case 'anthropic': return s.anthropicModel
+    default: return s.apiModel
   }
 }
 
 /** برچسب فارسی وضعیت موتور — نشان نوار بالا */
 export function engineLabel(provider: ProviderKind, model: string): string {
   switch (provider) {
-    case 'demo': return 'حالت نمایش'
-    case 'ollama': return `Ollama · ${model}`
-    case 'openai': return `API · ${model}`
+    case 'anthropic': return `Anthropic · ${model || '—'}`
+    case 'ollama': return `Ollama · ${model || '—'}`
+    case 'openai': return `API · ${model || '—'}`
   }
 }
 

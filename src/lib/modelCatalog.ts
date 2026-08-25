@@ -1,0 +1,113 @@
+/**
+ * Model Catalog — فچ لیست مدلها از endpointهای استاندارد
+ * OpenAI-compatible:  GET /v1/models          → { data: [{ id, ... }] }
+ * Ollama نیتیو:       GET /api/tags           → { models: [{ name, details }] }
+ * Anthropic:          GET /v1/models (هدر x-api-key + anthropic-version)
+ */
+export type Protocol = 'openai' | 'ollama' | 'anthropic'
+
+export interface CatalogModel {
+  id: string
+  /** برچسب نوع مدل — از نام و متادیتا حدس زده میشود */
+  kind?: ModelKind
+}
+
+export type ModelKind =
+  | 'chat'
+  | 'reasoning'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'embedding'
+
+export const MODEL_KIND_META: Record<
+  ModelKind,
+  { label: string; icon: string }
+> = {
+  chat:      { label: 'چت',        icon: '💬' },
+  reasoning: { label: 'استدلالی',  icon: '🧠' },
+  image:     { label: 'تصویر',     icon: '🎨' },
+  audio:     { label: 'صدا',       icon: '🔊' },
+  video:     { label: 'ویدئو',     icon: '🎬' },
+  embedding: { label: 'برداری',    icon: '🧲' },
+}
+
+/** تشخیص خودکار نوع مدل از نام — بدون فراخوانی شبکه */
+export function detectModelKind(id: string): ModelKind {
+  const n = id.toLowerCase()
+  // ترتیب مهم است — اول تصویر/صوت/ویدئو چون نامهای خاصتری دارند
+  if (/(^|[^a-z])(dall-e|dalle|flux|sdxl|stable-diffusion|sd3|sd-|imagen|midjourney|kolors|playground-v)/.test(n)) return 'image'
+  if (/whisper|tts|speech|audio|voice|f5-tts|parler/.test(n)) return 'audio'
+  if (/video|sora|wan[-_]?2|cogvideo|hunyuan-video|mochi|ltx-video/.test(n)) return 'video'
+  if (/embed|bge-|gte-|e5-|nomic-embed|minilm/.test(n)) return 'embedding'
+  if (/(^|[^a-z])(o1|o3|o4)([^a-z0-9]|$)|deepseek-r1|qwq|reasoning|r1[\s:-]|think/.test(n)) return 'reasoning'
+  if (/vision|-vl|vl-|llava|multimodal/.test(n)) return 'chat'
+  return 'chat'
+}
+
+function normalizeBase(base: string): string {
+  return base.replace(/\/+$/, '')
+}
+
+/** گرفتن مدلها با تایماوت و مدیریت خطای خوانا */
+async function fetchJson(url: string, headers: Record<string, string>): Promise<unknown> {
+  const res = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(10_000)
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+/** فچ مدلها بر اساس پروتکل انتخابی — خطا را پرتاب میکند تا UI پیام بدهد */
+export async function fetchModelCatalog(
+  protocol: Protocol,
+  opts: { baseURL: string; apiKey?: string; ollamaBaseURL?: string }
+): Promise<CatalogModel[]> {
+  if (protocol === 'ollama') {
+    // Ollama نیتیو متادیتای بیشتری میدهد؛ اگر نشد به مسیر سازگار OpenAI فال بک میکنیم
+    try {
+      const base = normalizeBase(opts.ollamaBaseURL ?? '').replace(/\/v1$/, '')
+      const json = await fetchJson(`${base}/api/tags`, {}) as {
+        models?: Array<{ name?: string; model?: string }>
+      }
+      const list = json.models ?? []
+      const mapped = list
+        .map(m => m.name ?? m.model ?? '')
+        .filter(Boolean)
+        .map(id => ({ id, kind: detectModelKind(id) }))
+      if (mapped.length > 0) return mapped
+      throw new Error('empty')
+    } catch {
+      // فال‌بک: مسیر سازگار OpenAI روی همان هاست
+      const base = normalizeBase(opts.ollamaBaseURL ?? '')
+      const json = await fetchJson(`${base}/models`, {}) as { data?: Array<{ id?: string }> }
+      return (json.data ?? [])
+        .map(m => m.id ?? '')
+        .filter(Boolean)
+        .map(id => ({ id, kind: detectModelKind(id) }))
+    }
+  }
+
+  const base = normalizeBase(opts.baseURL)
+  if (protocol === 'anthropic') {
+    const json = await fetchJson(`${base}/models`, {
+      'x-api-key': opts.apiKey ?? '',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    }) as { data?: Array<{ id?: string }> }
+    return (json.data ?? [])
+      .map(m => m.id ?? '')
+      .filter(Boolean)
+      .map(id => ({ id, kind: detectModelKind(id) }))
+  }
+
+  // openai-compatible
+  const json = await fetchJson(`${base}/models`, {
+    ...(opts.apiKey ? { Authorization: `Bearer ${opts.apiKey}` } : {})
+  }) as { data?: Array<{ id?: string }> }
+  return (json.data ?? [])
+    .map(m => m.id ?? '')
+    .filter(Boolean)
+    .map(id => ({ id, kind: detectModelKind(id) }))
+}

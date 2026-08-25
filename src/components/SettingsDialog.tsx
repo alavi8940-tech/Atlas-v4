@@ -1,73 +1,208 @@
 /**
- * SettingsDialog — پنجرهٔ تنظیمات Atlas (فاز ۱)
- * تب مدلها: انتخاب پروایدر، تنظیم اتصال، تست اتصال واقعی
+ * SettingsDialog — پنجرهٔ تنظیمات Atlas (فاز ۲ — بازطراحی بزرگ)
+ * تغییرات نسبت به فاز ۱: حذف دما/حداکثر توکن/تایپ دستی نام مدل/حالت نمایش،
+ * افزودن پروتکل Anthropic، فچ لیست مدلها از API با Dropdown شادکن.
  */
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useSettingsStore, engineLabel } from '@/stores/settingsStore'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select'
+import { useSettingsStore, engineLabel, activeModelName } from '@/stores/settingsStore'
 import type { ProviderKind } from '@/stores/settingsStore'
-import { PlugZap, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import {
+  fetchModelCatalog, MODEL_KIND_META,
+  type CatalogModel, type Protocol
+} from '@/lib/modelCatalog'
+import { PlugZap, Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react'
 
 const PROVIDERS: Array<{ id: ProviderKind; name: string; desc: string }> = [
-  { id: 'demo', name: 'حالت نمایش 🧭', desc: 'پاسخهای نمونهٔ ضبطشده — بدون مدل' },
   { id: 'ollama', name: 'Ollama (محلی)', desc: 'مدل روی دستگاه خودت — کاملاً خصوصی' },
-  { id: 'openai', name: 'API سازگار OpenAI', desc: 'LM Studio ، LiteLLM آرسنال ، vLLM و ...' }
+  { id: 'openai', name: 'API سازگار OpenAI', desc: 'LM Studio ، LiteLLM آرسنال ، vLLM و ...' },
+  { id: 'anthropic', name: 'Anthropic', desc: 'API رسمی Claude — ابری' }
 ]
+
+const ANTHROPIC_BASE = 'https://api.anthropic.com/v1'
 
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'fail'; message?: string }
 
-let t0 = 0
-
-/** تست واقعی اتصال: درخواست چت کوچک به endpoint سازگار OpenAI */
-async function testConnection(baseURL: string, apiKey: string, model: string): Promise<TestState> {
+/** تست واقعی اتصال بر اساس پروتکل انتخابی */
+async function testConnection(
+  protocol: Protocol,
+  baseURL: string,
+  apiKey: string,
+  model: string
+): Promise<TestState> {
   try {
-    const res = await fetch(`${baseURL.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 5,
-        stream: false
-      }),
-      signal: AbortSignal.timeout(8000)
-    })
+    const t0 = Date.now()
+    const base = baseURL.replace(/\/+$/, '')
+
+    const init: RequestInit =
+      protocol === 'anthropic'
+        ? {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 5,
+              messages: [{ role: 'user', content: 'ping' }]
+            }),
+            signal: AbortSignal.timeout(8000)
+          }
+        : {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: 'ping' }],
+              max_tokens: 5,
+              stream: false
+            }),
+            signal: AbortSignal.timeout(8000)
+          }
+
+    const res = await fetch(`${base}/chat/completions`, init).catch(() =>
+      // آنتراپیک مسیر متفاوتی دارد
+      protocol === 'anthropic'
+        ? fetch(`${base}/messages`, init)
+        : Promise.reject(new Error('network'))
+    )
+
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       return { status: 'fail', message: `HTTP ${res.status} — ${body.slice(0, 140)}` }
     }
     const json: unknown = await res.json()
-    if (typeof json !== 'object' || json === null || !('choices' in json)) {
+    const okShape =
+      typeof json === 'object' && json !== null &&
+      ('choices' in json || ('content' in json && 'role' in json))
+    if (!okShape) {
       return { status: 'fail', message: 'پاسخ غیرمنتظره — این endpoint چت نیست' }
     }
-    const latency = Date.now() - t0
-    return { status: 'ok', message: `متصل ✓ (${latency}ms)` }
+    return { status: 'ok', message: `متصل ✓ (${Date.now() - t0}ms)` }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { status: 'fail', message: msg.slice(0, 160) }
   }
 }
 
-export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }): React.JSX.Element {
+/* ─── فیلد انتخاب مدل با فچ از API ─── */
+
+function ModelField(props: {
+  protocol: Protocol
+  value: string
+  onChange: (id: string) => void
+  /** پارامترهای اتصال برای فچ کاتالوگ */
+  conn: { baseURL: string; apiKey?: string; ollamaBaseURL?: string }
+}): React.JSX.Element {
+  const { protocol, value, onChange, conn } = props
+  const [models, setModels] = useState<CatalogModel[]>([])
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [loadedOnce, setLoadedOnce] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setErr('')
+    try {
+      const list = await fetchModelCatalog(protocol, conn)
+      setModels(list)
+      if (list.length === 0) setErr('هیچ مدلی گزارش نشد — سرور را بررسی کن')
+    } catch (e) {
+      setErr(e instanceof Error ? e.message.slice(0, 120) : 'خطا در گرفتن لیست مدلها')
+    } finally {
+      setLoading(false)
+      setLoadedOnce(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [protocol, conn.baseURL, conn.apiKey, conn.ollamaBaseURL])
+
+  // اولین ورود به پنل → فچ خودکار؛ بعدش فقط با دکمهٔ رفرش
+  useEffect(() => {
+    if (!loadedOnce) void load()
+  }, [loadedOnce, load])
+
+  // اگر مقدار فعلی در لیست نیست (مثلاً قبل از فچ)، موقتاً به لیست اضافه کن تا نمایش نپرد
+  const items = useMemo(() => {
+    if (value && !models.some(m => m.id === value)) {
+      return [{ id: value }, ...models]
+    }
+    return models
+  }, [models, value])
+
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center gap-1.5">
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger size="sm" dir="ltr"
+            className="flex-1 rounded-xl border-none font-mono text-xs"
+            style={{ background: 'rgba(128,128,128,0.08)', color: 'var(--text-primary)' }}>
+            <SelectValue placeholder={loading ? 'در حال گرفتن مدلها...' : 'مدل را انتخاب کن'} />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map(m => (
+              <SelectItem key={m.id} value={m.id} dir="ltr" className="font-mono text-xs">
+                {m.kind ? `${MODEL_KIND_META[m.kind].icon}  ${m.id}` : m.id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="icon" onClick={() => void load()} disabled={loading}
+          title="گرفتن مجدد لیست مدلها"
+          className="size-8 shrink-0 rounded-xl">
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+        </Button>
+      </div>
+      {err && (
+        <p className="px-1 text-[10px] leading-relaxed text-red-400">{err}</p>
+      )}
+    </div>
+  )
+}
+
+/* ─── دیالوگ اصلی ─── */
+
+export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const s = useSettingsStore()
   const [test, setTest] = useState<TestState>({ status: 'idle' })
 
-  const activeBase = s.provider === 'ollama' ? s.ollamaBaseURL : s.apiBaseURL
-  const activeModel = s.provider === 'ollama' ? s.ollamaModel : s.apiModel
-  const activeKey = s.provider === 'openai' ? s.apiKey : ''
+  const activeBase =
+    s.provider === 'ollama' ? s.ollamaBaseURL :
+    s.provider === 'anthropic' ? ANTHROPIC_BASE : s.apiBaseURL
+  const activeKey =
+    s.provider === 'anthropic' ? s.anthropicApiKey :
+    s.provider === 'openai' ? s.apiKey : ''
+  const activeModel = activeModelName(s)
+
+  const conn = useMemo(() => ({
+    baseURL: s.provider === 'ollama' ? '' : s.provider === 'anthropic' ? ANTHROPIC_BASE : s.apiBaseURL,
+    apiKey: s.provider === 'anthropic' ? s.anthropicApiKey : s.provider === 'openai' ? s.apiKey : '',
+    ollamaBaseURL: s.provider === 'ollama' ? s.ollamaBaseURL : ''
+  }), [s.provider, s.apiBaseURL, s.apiKey, s.anthropicApiKey, s.ollamaBaseURL])
 
   const runTest = (): void => {
+    if (!activeModel.trim()) {
+      setTest({ status: 'fail', message: 'اول یک مدل انتخاب کن' })
+      return
+    }
     setTest({ status: 'testing' })
-    t0 = Date.now()
-    void testConnection(activeBase, activeKey, activeModel).then(setTest)
+    void testConnection(s.provider, activeBase, activeKey, activeModel).then(setTest)
   }
+
+  const inputCls = 'rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none'
+  const inputStyle = { color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,17 +243,14 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>آدرس سرور</label>
             <input dir="ltr" value={s.ollamaBaseURL}
               onChange={e => s.setModel({ ollamaBaseURL: e.target.value })}
-              className="rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none"
-              placeholder="http://localhost:11434/v1"
-              style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
-            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>نام مدل</label>
-            <input dir="ltr" value={s.ollamaModel}
-              onChange={e => s.setModel({ ollamaModel: e.target.value })}
-              className="rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none"
-              placeholder="qwen3:8b"
-              style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
+              className={inputCls} style={inputStyle}
+              placeholder="http://localhost:11434/v1" />
+            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>مدل</label>
+            <ModelField protocol="ollama" value={s.ollamaModel}
+              onChange={id => s.setModel({ ollamaModel: id })}
+              conn={conn} />
             <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              💡 اجرای مدل: <code dir="ltr">ollama pull {s.ollamaModel}</code>
+              💡 اجرای سرور محلی: <code dir="ltr">ollama serve</code> — لیست مدلها از همین دکمهٔ ↻ گرفته میشود
             </p>
           </div>
         )}
@@ -129,54 +261,49 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>آدرس پایه</label>
             <input dir="ltr" value={s.apiBaseURL}
               onChange={e => s.setModel({ apiBaseURL: e.target.value })}
-              className="rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none"
-              placeholder="https://api.openai.com/v1"
-              style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
+              className={inputCls} style={inputStyle}
+              placeholder="https://api.openai.com/v1" />
             <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>کلید API</label>
             <input dir="ltr" type="password" value={s.apiKey}
               onChange={e => s.setModel({ apiKey: e.target.value })}
-              className="rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none"
-              placeholder="sk-..."
-              style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
-            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>نام مدل</label>
-            <input dir="ltr" value={s.apiModel}
-              onChange={e => s.setModel({ apiModel: e.target.value })}
-              className="rounded-xl bg-transparent px-3 py-2 font-mono text-xs outline-none"
-              placeholder="gpt-4o-mini"
-              style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
+              className={inputCls} style={inputStyle}
+              placeholder="sk-..." />
+            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>مدل</label>
+            <ModelField protocol="openai" value={s.apiModel}
+              onChange={id => s.setModel({ apiModel: id })}
+              conn={conn} />
           </div>
         )}
 
-        {/* ─── پارامترها ─── */}
-        {(s.provider !== 'demo') && (
-          <div className="grid gap-3 rounded-2xl p-3 glass">
-            <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span style={{ color: 'var(--text-secondary)' }}>دما</span>
-                <span className="font-mono">{s.temperature.toFixed(1)}</span>
-              </div>
-              <input type="range" min={0} max={2} step={0.1} value={s.temperature}
-                onChange={e => s.setModel({ temperature: Number(e.target.value) })}
-                className="w-full accent-current" style={{ accentColor: 'var(--accent)' }} />
-            </div>
-            <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span style={{ color: 'var(--text-secondary)' }}>حداکثر توکن</span>
-                <span className="font-mono">{s.maxTokens}</span>
-              </div>
-              <input type="range" min={256} max={8192} step={256} value={s.maxTokens}
-                onChange={e => s.setModel({ maxTokens: Number(e.target.value) })}
-                className="w-full" style={{ accentColor: 'var(--accent)' }} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs" style={{ color: 'var(--text-secondary)' }}>پرامپت سیستم</label>
-              <textarea rows={3} value={s.systemPrompt}
-                onChange={e => s.setModel({ systemPrompt: e.target.value })}
-                className="w-full resize-none rounded-xl bg-transparent px-3 py-2 text-xs leading-relaxed outline-none"
-                style={{ color: 'var(--text-primary)', background: 'rgba(128,128,128,0.08)' }} />
-            </div>
+        {/* ─── Anthropic ─── */}
+        {s.provider === 'anthropic' && (
+          <div className="grid gap-2 rounded-2xl p-3 glass">
+            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>کلید API</label>
+            <input dir="ltr" type="password" value={s.anthropicApiKey}
+              onChange={e => s.setModel({ anthropicApiKey: e.target.value })}
+              className={inputCls} style={inputStyle}
+              placeholder="sk-ant-..." />
+            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>مدل</label>
+            <ModelField protocol="anthropic" value={s.anthropicModel}
+              onChange={id => s.setModel({ anthropicModel: id })}
+              conn={conn} />
+            <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              💡 کلید را از console.anthropic.com بگیر — درخواستها مستقیم از مرورگر ارسال میشود
+            </p>
           </div>
         )}
+
+        {/* ─── پرامپت سیستم ─── */}
+        <div className="grid gap-2 rounded-2xl p-3 glass">
+          <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>پرامپت سیستم</label>
+          <textarea rows={3} value={s.systemPrompt}
+            onChange={e => s.setModel({ systemPrompt: e.target.value })}
+            className="w-full resize-none rounded-xl bg-transparent px-3 py-2 text-xs leading-relaxed outline-none"
+            style={inputStyle} />
+          <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+            این پرامپت به پرامپت پایهٔ قفل Atlas زنجیر میشود.
+          </p>
+        </div>
 
         {/* ─── نتیجهٔ تست ─── */}
         {test.status !== 'idle' && test.status !== 'testing' && (
@@ -189,13 +316,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         )}
 
         <DialogFooter className="sm:justify-between">
-          {s.provider !== 'demo' && (
-            <Button variant="outline" size="sm" onClick={runTest} disabled={test.status === 'testing'}
-              className="gap-1.5 rounded-xl text-xs">
-              {test.status === 'testing' ? <Loader2 size={13} className="animate-spin" /> : <PlugZap size={13} />}
-              {test.status === 'testing' ? 'در حال تست...' : 'تست اتصال'}
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={runTest} disabled={test.status === 'testing'}
+            className="gap-1.5 rounded-xl text-xs">
+            {test.status === 'testing' ? <Loader2 size={13} className="animate-spin" /> : <PlugZap size={13} />}
+            {test.status === 'testing' ? 'در حال تست...' : 'تست اتصال'}
+          </Button>
           <Button size="sm" onClick={() => onOpenChange(false)}
             className="rounded-xl text-xs text-white" style={{ background: 'var(--accent)' }}>
             ذخیره و بستن

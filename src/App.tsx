@@ -5,7 +5,7 @@ import { Welcome } from '@/components/Welcome'
 import { SettingsDialog } from '@/components/SettingsDialog'
 import {
   applyTheme, useSettingsStore,
-  getModelSettings, engineLabel
+  getModelSettings, engineLabel, activeModelName
 } from '@/stores/settingsStore'
 import {
   useConversationsStore, useMessagesStore
@@ -172,24 +172,20 @@ function App(): React.JSX.Element {
 
 /** دنبالکردن تنظیمات موتور برای نشان نوار بالا */
 function useEngineInfo(): string {
-  const [label, setLabel] = useState(() =>
-    engineLabel(getModelSettings().provider, activeModelName())
-  )
+  const [label, setLabel] = useState(() => {
+    const s = getModelSettings()
+    return engineLabel(s.provider, activeModelName(s))
+  })
   useEffect(() => {
     const sync = (): void => {
       const s = useSettingsStore.getState()
-      setLabel(engineLabel(s.provider, s.provider === 'ollama' ? s.ollamaModel : s.apiModel))
+      setLabel(engineLabel(s.provider, activeModelName(s)))
       applyTheme(s.theme)
     }
     sync()
     return useSettingsStore.subscribe(sync)
   }, [])
   return label
-}
-
-function activeModelName(): string {
-  const s = getModelSettings()
-  return s.provider === 'ollama' ? s.ollamaModel : s.apiModel
 }
 
 export default App
