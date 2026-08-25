@@ -1,13 +1,18 @@
 {
   "name": "atlas-v4",
   "private": true,
-  "version": "0.0.0",
+  "version": "4.0.0",
   "type": "module",
+  "description": "Atlas — دستیار هوشمند محلی با رابط شیشه‌ای فارسی",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist": "vite build",
+    "app": "electron .",
+    "appimage": "electron-builder --linux AppImage"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.47",

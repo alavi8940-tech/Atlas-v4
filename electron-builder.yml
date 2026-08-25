@@ -1,0 +1,20 @@
+appId: dev.alavi.atlas
+productName: Atlas
+directories:
+  output: release
+  buildResources: desktop
+files:
+  - dist/**
+  - desktop/main.cjs
+electronLanguages:
+  - en-US
+linux:
+  icon: desktop/icons
+  category: Utility
+  desktop:
+    Name: Atlas
+    StartupWMClass: Atlas
+  target:
+    - AppImage
+appImage:
+  artifactName: Atlas-${version}-${arch}.AppImage

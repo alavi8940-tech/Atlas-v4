@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Atlas
+GenericName=AI Assistant
+Comment=🧭 دستیار هوشمند محلی — Local AI agent
+Exec=Atlas
+Icon=atlas
+Categories=Utility;Development;
+Terminal=false
+StartupWMClass=Atlas
