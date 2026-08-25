@@ -12,6 +12,8 @@ import {
   DownloadIcon,
 } from "lucide-react";
 import type { FileMessagePartComponent } from "@assistant-ui/react";
+import { AtlasAudioPlayer } from "@/components/AudioPlayer";
+import { AtlasVideoPlayer } from "@/components/VideoPlayer";
 import { cn } from "@/lib/utils";
 
 const fileVariants = cva(
@@ -213,8 +215,24 @@ const FileImpl: FileMessagePartComponent = ({
   sourceType,
 }) => {
   const kind = getFileDataKind(data, sourceType);
+  const href =
+    kind === "base64"
+      ? `data:${mimeType};base64,${data}`
+      : kind === "data-uri"
+        ? data
+        : data;
   const showSize =
     typeof data === "string" && (kind === "base64" || kind === "data-uri");
+
+  // صوت و ویدئو → پلیرهای اختصاصی آرسنال (قانون همیشگی پروژه)
+  if (mimeType.toLowerCase().startsWith("audio/") && href) {
+    return <AtlasAudioPlayer src={href} {...(filename !== undefined && { filename })} />;
+  }
+  if (mimeType.toLowerCase().startsWith("video/") && href && kind !== "id") {
+    return (
+      <AtlasVideoPlayer src={href} {...(filename !== undefined && { title: filename })} />
+    );
+  }
 
   return (
     <FileRoot>

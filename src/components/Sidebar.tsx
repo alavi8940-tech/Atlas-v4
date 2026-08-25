@@ -8,7 +8,7 @@ import { SettingsDialog } from '@/components/SettingsDialog'
 import { SkillsStorePanel } from '@/components/SkillsStorePanel'
 import { useSkillsStore } from '@/stores/skillsStore'
 import {
-  useConversationsStore, groupConversations
+  useConversationsStore, useMessagesStore, groupConversations
 } from '@/stores/conversationsStore'
 
 const GROUP_LABELS: Record<string, string> = {
@@ -35,7 +35,7 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
 
   // حذف پیامهای مکالمهٔ حذفشده (آبشاری)
   const removeCascade = (id: string): void => {
-    import('@/stores/conversationsStore').then(m => m.useMessagesStore.getState().drop(id))
+    useMessagesStore.getState().drop(id)
     removeConv(id)
   }
 

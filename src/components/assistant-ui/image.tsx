@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  memo,
-  useState,
-  useEffect,
-  useRef,
-  type PropsWithChildren,
-} from "react";
-import { createPortal } from "react-dom";
+import { memo, useState, useEffect, useRef, type PropsWithChildren } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   CopyIcon,
@@ -22,6 +15,7 @@ import type {
   ImageMessagePart,
   ImageMessagePartComponent,
 } from "@assistant-ui/react";
+import { MediaLightbox } from "@/components/MediaLightbox";
 import { cn } from "@/lib/utils";
 
 const extensionForMimeType = (mimeType?: string): string => {
@@ -254,39 +248,13 @@ type ImageZoomProps = PropsWithChildren<{
 }>;
 
 function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleOpen = () => setIsOpen(true);
-  const handleClose = () => setIsOpen(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen]);
 
   return (
     <>
       <div
-        onClick={handleOpen}
-        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+        onClick={() => setIsOpen(true)}
+        onKeyDown={(e) => e.key === "Enter" && setIsOpen(true)}
         role="button"
         tabIndex={0}
         className="aui-image-zoom-trigger cursor-zoom-in"
@@ -294,31 +262,13 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       >
         {children}
       </div>
-      {isMounted &&
-        isOpen &&
-        createPortal(
-          <div
-            data-slot="image-zoom-overlay"
-            role="button"
-            tabIndex={0}
-            className="aui-image-zoom-overlay fade-in animate-in fixed inset-0 z-50 flex items-center justify-center bg-black/80 duration-200"
-            onClick={handleClose}
-            onKeyDown={(e) => e.key === "Enter" && handleClose()}
-            aria-label="Close zoomed image"
-          >
-            <img
-              data-slot="image-zoom-content"
-              src={src}
-              alt={alt}
-              className="aui-image-zoom-content fade-in zoom-in-95 animate-in max-h-[90vh] max-w-[90vw] cursor-zoom-out object-contain duration-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-            />
-          </div>,
-          document.body,
-        )}
+      {/* لایت‌باکس آمادهٔ آرسنال — جایگزین پرتال دستی (قانون همیشگی پروژه) */}
+      <MediaLightbox
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        src={src}
+        alt={alt}
+      />
     </>
   );
 }
