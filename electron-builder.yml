@@ -11,9 +11,6 @@ electronLanguages:
 linux:
   icon: desktop/icons
   category: Utility
-  desktop:
-    Name: Atlas
-    StartupWMClass: Atlas
   target:
     - AppImage
 appImage:

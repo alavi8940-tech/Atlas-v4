@@ -47,6 +47,12 @@
     "@vitejs/plugin-react": "^6.1.0",
     "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "author": {
+    "name": "alavi8940-tech",
+    "url": "https://github.com/alavi8940-tech"
   }
 }
