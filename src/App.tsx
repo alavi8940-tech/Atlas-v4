@@ -24,6 +24,7 @@ import { ToolsPanel } from '@/components/ToolsPanel'
 import { CommandPalette } from '@/components/CommandPalette'
 import { Toaster } from '@/components/Toaster'
 import { VoiceChatPanel } from '@/components/VoiceChatPanel'
+import { VoiceOrbDemo } from '@/components/VoiceOrbDemo'
 import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench, Search, Mic } from 'lucide-react'
 
 function App(): React.JSX.Element {
@@ -35,6 +36,7 @@ function App(): React.JSX.Element {
   const [activityOpen, setActivityOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [orbOpen, setOrbOpen] = useState(false)
   const agentEnabled = useSettingsStore(s => s.agentEnabled)
   const planMode = useSettingsStore(s => s.planMode)
   const panel = useUiStore((s) => s.panel)
@@ -74,18 +76,21 @@ function App(): React.JSX.Element {
     const openSettings = (): void => setSettingsOpen(true)
     const openTools = (): void => setToolsOpen(true)
     const openVoice = (): void => setVoiceOpen(true)
+    const openOrb = (): void => setOrbOpen(true)
     const newChat = (): void => { try { createConv() } catch { /* ignore */ } }
     window.addEventListener('atlas:open-settings', openSettings)
     window.addEventListener('atlas:open-tools', openTools)
     window.addEventListener('atlas:open-voice', openVoice)
+    window.addEventListener('atlas:open-orb', openOrb)
     window.addEventListener('atlas:new-chat', newChat)
     return () => {
       window.removeEventListener('atlas:open-settings', openSettings)
       window.removeEventListener('atlas:open-tools', openTools)
       window.removeEventListener('atlas:open-voice', openVoice)
+      window.removeEventListener('atlas:open-orb', openOrb)
       window.removeEventListener('atlas:new-chat', newChat)
     }
-  }, [createConv, setToolsOpen, setSettingsOpen, setVoiceOpen])
+  }, [createConv, setToolsOpen, setSettingsOpen, setVoiceOpen, setOrbOpen])
 
   /* ─── شروع/توقف مکالمه برای نمایش Welcome یا Thread ─── */
   useEffect(() => {
@@ -274,6 +279,14 @@ function App(): React.JSX.Element {
           >
             <Mic size={13} /> صوتی
           </button>
+          <button
+            onClick={() => setOrbOpen(true)}
+            className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+            style={{ color: orbOpen ? 'var(--accent)' : 'var(--text-secondary)' }}
+            title="اورب صوتی (WebGL)"
+          >
+            🔮 اورب
+          </button>
             <button
               onClick={() => setToolsOpen(o => !o)}
               className="btn-gradient flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
@@ -310,6 +323,7 @@ function App(): React.JSX.Element {
       <Toaster />
       <ToolsPanel open={toolsOpen} onClose={() => setToolsOpen(false)} />
       <VoiceChatPanel open={voiceOpen} onClose={() => setVoiceOpen(false)} />
+      <VoiceOrbDemo open={orbOpen} onClose={() => setOrbOpen(false)} />
     </AssistantRuntimeProvider>
   )
 }
