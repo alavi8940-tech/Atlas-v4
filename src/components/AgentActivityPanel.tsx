@@ -14,9 +14,13 @@ import {
   Brain,
   Trash2,
   Activity,
+  ScanText,
+  Pencil,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { type ComponentType, type CSSProperties } from "react";
+import { useState, type ComponentType, type CSSProperties } from "react";
+import { useAui } from "@assistant-ui/react";
+import { ImageStudio } from "@/components/ImageStudio";
 
 const ICONS: Record<string, ComponentType<{ size?: number; className?: string; style?: CSSProperties }>> = {
   shell_exec: Terminal,
@@ -89,6 +93,8 @@ function summarize(e: ActivityEntry): string {
 export function AgentActivityPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const entries = useActivityStore((s) => s.entries);
   const clear = useActivityStore((s) => s.clear);
+  const aui = useAui();
+  const [editSrc, setEditSrc] = useState<string | null>(null);
 
   return (
     <AnimatePresence>
@@ -146,12 +152,32 @@ export function AgentActivityPanel({ open, onClose }: { open: boolean; onClose: 
                   </div>
                   <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{summarize(e)}</p>
                   {e.screenshot && (
-                    <img
-                      src={e.screenshot}
-                      alt="screenshot"
-                      className="mt-2 max-h-40 w-full rounded-lg border object-cover"
-                      style={{ borderColor: "var(--glass-border)" }}
-                    />
+                    <>
+                      <img
+                        src={e.screenshot}
+                        alt="screenshot"
+                        className="mt-2 max-h-40 w-full rounded-lg border object-cover"
+                        style={{ borderColor: "var(--glass-border)" }}
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => aui.thread.append(`[تصویر پیوست]\n${e.screenshot}\n\nاین تصویر را توصیف و خلاصه کن.`)}
+                          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] transition-colors hover:bg-[var(--glass-hover)]"
+                          style={{ color: "var(--accent)" }}
+                          title="خلاصهٔ تصویر در چت"
+                        >
+                          <ScanText size={12} /> خلاصه
+                        </button>
+                        <button
+                          onClick={() => setEditSrc(e.screenshot ?? null)}
+                          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] transition-colors hover:bg-[var(--glass-hover)]"
+                          style={{ color: "var(--text-secondary)" }}
+                          title="ویرایش تصویر (استودیو)"
+                        >
+                          <Pencil size={12} /> ویرایش
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               );
@@ -159,6 +185,7 @@ export function AgentActivityPanel({ open, onClose }: { open: boolean; onClose: 
           </div>
         </motion.aside>
       )}
+      {editSrc && <ImageStudio src={editSrc} onClose={() => setEditSrc(null)} />}
     </AnimatePresence>
   );
 }

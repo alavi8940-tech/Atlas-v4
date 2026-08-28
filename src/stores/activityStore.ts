@@ -6,13 +6,14 @@ import { create } from "zustand";
 import type { AtlasActivity } from "@/types/atlas-api";
 
 export interface ActivityEntry {
-  id: string;
-  tool: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
-  ts: number;
-  screenshot?: string;
+  id: string
+  tool: string
+  args?: Record<string, unknown>
+  result?: unknown
+  error?: string
+  ts: number
+  pending?: boolean
+  screenshot?: string
 }
 
 interface ActivityState {
@@ -52,5 +53,6 @@ export function formatBackendActivity(data: AtlasActivity): ActivityEntry {
     result: data.result,
     error: data.error,
     ts: data.ts,
+    pending: data.pending,
   };
 }

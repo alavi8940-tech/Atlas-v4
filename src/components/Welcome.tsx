@@ -23,6 +23,7 @@ export function Welcome(): React.JSX.Element {
   const [hint, setHint] = useState('')
   const [attachments, setAttachments] = useState<{ name: string; content: string; mime?: string }[]>([])
   const [listening, setListening] = useState(false)
+  const [listenAlways, setListenAlways] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<unknown>(null)
   const openBrowser = useUiStore((s) => s.openBrowser)
@@ -73,6 +74,40 @@ export function Welcome(): React.JSX.Element {
     rec.onend = () => setListening(false)
     recRef.current = rec
     setListening(true)
+    rec.start()
+  }
+
+  /** دستیار صوتی همیشه‌روشن: با گفتن «اطلس» دستور بعدی اجرا میشود */
+  const toggleAlways = (): void => {
+    const SR = (window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: new () => unknown }).webkitSpeechRecognition
+    if (!SR) {
+      setHint('ورودی صوتی در این مرورگر پشتیبانی نمیشود')
+      return
+    }
+    if (listenAlways) {
+      setListenAlways(false)
+      try { (recRef.current as { stop?: () => void } | null)?.stop?.() } catch { /* ignore */ }
+      return
+    }
+    const rec = new SR() as { lang: string; interimResults: boolean; continuous: boolean; onresult: (e: unknown) => void; onend: () => void; start: () => void }
+    rec.lang = 'fa-IR'
+    rec.interimResults = true
+    rec.continuous = true
+    rec.onresult = (e: unknown) => {
+      const res = (e as { results: Array<Array<{ transcript: string }>> }).results
+      let t = ''
+      for (let i = 0; i < res.length; i++) t += res[i][0].transcript
+      setText(t)
+      const m = t.match(/(?:اطلس|atlas)\s+(.*)$/i)
+      if (m && m[1].trim()) {
+        send(m[1].trim())
+        setText('')
+      }
+    }
+    rec.onend = () => { if (listenAlways) try { rec.start() } catch { /* ignore */ } }
+    recRef.current = rec
+    setListenAlways(true)
     rec.start()
   }
 
@@ -127,6 +162,7 @@ export function Welcome(): React.JSX.Element {
             <button onClick={() => openBrowser(text ? `https://duckduckgo.com/html/?q=${encodeURIComponent(text)}` : undefined)} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="جستجوی وب"><Globe size={16} /></button>
             <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-skills'))} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="فروشگاه مهارتها"><Sparkles size={16} /></button>
             <button onClick={() => openTerminal()} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="اجرای کد / ترمینال"><Code2 size={16} /></button>
+            <button onClick={toggleAlways} className={`rounded-xl p-2 transition-all hover:scale-110 ${listenAlways ? 'animate-pulse' : ''}`} style={{ color: listenAlways ? 'var(--accent)' : 'var(--text-secondary)' }} title="دستیار صوتی همیشه‌روشن (بگو: اطلس ...)">🎧</button>
             {text.trim() ? (
               <button onClick={() => send(text)} className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-110" style={{ background: 'var(--accent)' }} title="ارسال (Enter)"><SendHorizontalIcon size={16} /></button>
             ) : (

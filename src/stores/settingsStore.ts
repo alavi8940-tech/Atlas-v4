@@ -92,6 +92,12 @@ interface SettingsState extends ModelSettings {
   /** حالت عامل: ابزارهای سیستمی (شل/فایل/موس/کیبورد/صفحه) فعال باشند؟ */
   agentEnabled: boolean
   setAgentEnabled: (v: boolean) => void
+  /** حالت حریم خصوصی: فعالیت ثبت نشود و مکالمه‌ها پایدار نمانند */
+  privacyMode: boolean
+  setPrivacyMode: (v: boolean) => void
+  /** حالت پلن: دستورات خطرناک ابتدا «در انتظار تأیید» میشوند (فقط دسکتاپ) */
+  planMode: boolean
+  setPlanMode: (v: boolean) => void
   /** بهروزرسانی جزئی تنظیمات مدل */
   setModel: (patch: Partial<ModelSettings>) => void
   /** برگرداندن تنظیمات مدل به پیشفرض */
@@ -108,6 +114,13 @@ export const useSettingsStore = create<SettingsState>()(
       setOrbState: orbState => set({ orbState }),
       agentEnabled: false,
       setAgentEnabled: v => set({ agentEnabled: v }),
+      privacyMode: false,
+      setPrivacyMode: v => set({ privacyMode: v }),
+      planMode: false,
+      setPlanMode: v => {
+        set({ planMode: v })
+        window.atlasAPI?.setPlan?.(v)
+      },
       setModel: patch => set(patch),
       resetModel: () => set({ ...DEFAULT_MODEL_SETTINGS })
     }),
@@ -126,7 +139,9 @@ export const useSettingsStore = create<SettingsState>()(
         anthropicApiKey: s.anthropicApiKey,
         anthropicModel: s.anthropicModel,
         systemPrompt: s.systemPrompt,
-        agentEnabled: s.agentEnabled
+        agentEnabled: s.agentEnabled,
+        privacyMode: s.privacyMode,
+        planMode: s.planMode
       })
     }
   )

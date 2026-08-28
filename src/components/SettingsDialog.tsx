@@ -341,6 +341,46 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           </button>
         </div>
 
+        {/* ─── حالت پلن ─── */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl p-3 glass">
+          <div className="grid gap-0.5">
+            <span className="text-sm font-medium">حالت پلن (Plan &amp; Approve)</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              دستورات خطرناک ابتدا در انتظار تأیید میمانند — فقط دسکتاپ.
+            </span>
+          </div>
+          <button
+            role="switch"
+            aria-checked={s.planMode}
+            onClick={() => s.setPlanMode(!s.planMode)}
+            className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+            style={{ background: s.planMode ? 'var(--accent)' : 'rgba(128,128,128,0.3)' }}
+            title="حالت پلن"
+          >
+            <span className="absolute top-0.5 size-5 rounded-full bg-white transition-all duration-200" style={{ insetInlineStart: s.planMode ? '22px' : '2px' }} />
+          </button>
+        </div>
+
+        {/* ─── حریم خصوصی ─── */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl p-3 glass">
+          <div className="grid gap-0.5">
+            <span className="text-sm font-medium">حالت حریم خصوصی</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              فعالیت ابزارهای عامل ثبت نشود (پنل فعالیت خالی میماند).
+            </span>
+          </div>
+          <button
+            role="switch"
+            aria-checked={s.privacyMode}
+            onClick={() => s.setPrivacyMode(!s.privacyMode)}
+            className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+            style={{ background: s.privacyMode ? 'var(--accent)' : 'rgba(128,128,128,0.3)' }}
+            title="حریم خصوصی"
+          >
+            <span className="absolute top-0.5 size-5 rounded-full bg-white transition-all duration-200" style={{ insetInlineStart: s.privacyMode ? '22px' : '2px' }} />
+          </button>
+        </div>
+
         {/* ─── نتیجهٔ تست ─── */}
         {test.status !== 'idle' && test.status !== 'testing' && (
           <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs ${

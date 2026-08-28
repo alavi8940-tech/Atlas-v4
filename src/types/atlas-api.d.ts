@@ -9,6 +9,7 @@ export interface AtlasActivity {
   result?: unknown
   error?: string
   ts: number
+  pending?: boolean
 }
 
 export interface ProxyOptions {
@@ -32,6 +33,8 @@ export interface AtlasAPI {
   openExternal: (url: string) => void
   /** تنظیم نیازبه‌تأیید دستورات خطرناک (شل/کشتن فرآیند/موس/کیبورد) */
   setConfirm?: (enabled: boolean) => void
+  /** تنظیم حالت پلن (در انتظار تأیید ماندن دستورات خطرناک) */
+  setPlan?: (enabled: boolean) => void
   /** پروکسی درخواستهای شبکه از پروسهٔ اصلی (کلیدها از مرورگر خارج نمیشوند) */
   proxy?: (opts: ProxyOptions) => Promise<ProxyResult>
   onActivity: (cb: (d: AtlasActivity) => void) => () => void

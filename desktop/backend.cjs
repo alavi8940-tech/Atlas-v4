@@ -38,6 +38,20 @@ const DANGEROUS = new Set([
 let confirmDangerous = loadConfirm();
 const confirmPath = path.join(app.getPath("userData"), "atlas-confirm.json");
 
+/* ─── حالت پلن (در انتظار تأیید) ─── */
+const planPath = path.join(app.getPath("userData"), "atlas-plan.json");
+let planMode = loadPlan();
+function loadPlan() {
+  try {
+    return JSON.parse(fs.readFileSync(planPath, "utf8")).planMode !== false;
+  } catch {
+    return false;
+  }
+}
+function savePlan() {
+  fsp.writeFile(planPath, JSON.stringify({ planMode }), "utf8").catch(() => {});
+}
+
 function loadConfirm() {
   try {
     const j = JSON.parse(fs.readFileSync(confirmPath, "utf8"));
@@ -311,6 +325,12 @@ function registerBackend() {
     const fn = tools[tool];
     if (!fn) return { ok: false, error: `ابزار ناشناخته: ${tool}` };
 
+    // دریچهٔ امنیتی: حالت پلن → ابتدا «در انتظار تأیید» (بدون اجرا)
+    if (planMode && DANGEROUS.has(tool) && !(args && args.approved)) {
+      broadcast({ tool, args, pending: true, ts: Date.now() });
+      return { ok: false, pending: true, plan: { tool, args } };
+    }
+
     // دریچهٔ امنیتی: تأیید کاربر برای ابزارهای خطرناک
     if (confirmDangerous && DANGEROUS.has(tool)) {
       const allowed = requestConfirm(tool, args);
@@ -332,6 +352,12 @@ function registerBackend() {
     confirmDangerous = enabled !== false;
     saveConfirm();
     return { ok: true, confirmDangerous };
+  });
+
+  ipcMain.handle("atlas:set-plan", (_e, enabled) => {
+    planMode = enabled !== false;
+    savePlan();
+    return { ok: true, planMode };
   });
 
   ipcMain.handle("atlas:proxy", async (_e, { url, method = "GET", headers = {}, body } = {}) => {

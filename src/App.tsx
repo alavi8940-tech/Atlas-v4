@@ -18,7 +18,10 @@ import { InternalBrowser } from '@/components/InternalBrowser'
 import { TerminalPanel } from '@/components/TerminalPanel'
 import { useUiStore } from '@/stores/uiStore'
 import { useActivityStore, formatBackendActivity } from '@/stores/activityStore'
-import { PanelRightOpen, Sparkles, Bot, Globe, Terminal } from 'lucide-react'
+import { usePlanStore } from '@/stores/planStore'
+import { useScheduleStore, isTaskDue } from '@/stores/scheduleStore'
+import { ToolsPanel } from '@/components/ToolsPanel'
+import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench } from 'lucide-react'
 
 function App(): React.JSX.Element {
   const engine = useEngineInfo()
@@ -30,6 +33,7 @@ function App(): React.JSX.Element {
   const agentEnabled = useSettingsStore(s => s.agentEnabled)
   const panel = useUiStore((s) => s.panel)
   const setPanel = useUiStore((s) => s.setPanel)
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   const conversations = useConversationsStore(s => s.conversations)
   const activeId = useConversationsStore(s => s.activeId)
@@ -85,9 +89,34 @@ function App(): React.JSX.Element {
     const api = window.atlasAPI
     if (!api?.onActivity) return
     const off = api.onActivity((d) => {
+      // حالت حریم خصوصی: فعالیت ثبت نشود
+      if (useSettingsStore.getState().privacyMode) return
+      if (d.pending) {
+        // گام در انتظار تأیید → به صف پلن اضافه شود
+        usePlanStore.getState().add(d.tool, d.args ?? {})
+      }
       useActivityStore.getState().push(formatBackendActivity(d))
     })
     return off
+  }, [])
+
+  /* ─── اجراکنندهٔ تسک‌های زمان‌بندی‌شده ─── */
+  const scheduleLastCheck = useRef(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => {
+      const now = new Date()
+      const last = scheduleLastCheck.current
+      scheduleLastCheck.current = Date.now()
+      for (const task of useScheduleStore.getState().tasks) {
+        if (isTaskDue(task, now, last)) {
+          try {
+            runtimeRef.current.thread.append(task.prompt)
+            useScheduleStore.getState().markRun(task.id)
+          } catch { /* ignore */ }
+        }
+      }
+    }, 30_000)
+    return () => clearInterval(t)
   }, [])
 
   /* ─── سوییچ مکالمه: ذخیرهٔ قبلی و بازیابی مقصد ─── */
@@ -206,6 +235,14 @@ function App(): React.JSX.Element {
                 <Bot size={13} /> عامل
               </button>
             )}
+            <button
+              onClick={() => setToolsOpen(o => !o)}
+              className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+              style={{ color: toolsOpen ? 'var(--accent)' : 'var(--text-secondary)' }}
+              title="ابزارها و قابلیت‌های پیشرفته"
+            >
+              <Wrench size={13} /> ابزارها
+            </button>
           </div>
 
           <div className="min-h-0 flex-1">
@@ -216,6 +253,7 @@ function App(): React.JSX.Element {
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AgentActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
+      <ToolsPanel open={toolsOpen} onClose={() => setToolsOpen(false)} />
     </AssistantRuntimeProvider>
   )
 }
