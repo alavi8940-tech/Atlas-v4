@@ -2,11 +2,12 @@
  * Welcome — صفحهٔ خوشآمد وصل به runtime
  * گوی با افکت فکر کردن + ارسال واقعی پیام
  */
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAui, useAuiState } from '@assistant-ui/react'
 import { ThinkingOrb } from '@/components/ThinkingOrb'
 import { ThemeGallery } from '@/components/ThemeGallery'
-import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X } from 'lucide-react'
+import { useUiStore } from '@/stores/uiStore'
+import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText } from 'lucide-react'
 
 const SUGGESTIONS = [
   { icon: '📊', text: 'وضعیت سیستمم رو تحلیل کن' },
@@ -15,83 +16,64 @@ const SUGGESTIONS = [
   { icon: '💾', text: 'یه اسکریپت بکاپ بنویس' }
 ]
 
-/**
- * پرامپت آمادهٔ تصویرسازی — جایگزین 🧭 قدیمی
- * با یک کلیک به مدل تصویرسازِ تنظیمشده ارسال میشود (بخش ۴-ج سند فاز ۲)
- */
-const IMAGE_PROMPT =
-  'یک صحنهٔ رویایی از شهر شیشهای زیر شفق قطبی بساز؛ ساختمانهای نیمهشفاف با نور آبی و بنفش، بازتاب روی خیابان خیس، سبک مینیمال دیجیتال، جزئیات بالا، نورپردازی سینمایی'
-
-function ImageGenCard({ onSend, disabled }: { onSend: (p: string) => void; disabled: boolean }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false)
-  const [prompt, setPrompt] = useState(IMAGE_PROMPT)
-
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        disabled={disabled}
-        className="glass glass-accent-ring rise-in group flex items-center gap-3 rounded-[1.4rem] px-5 py-3.5 transition-all hover:scale-[1.02] disabled:opacity-40"
-        title="پرامپت تصویرسازی آماده"
-      >
-        <span className="text-xl transition-transform group-hover:scale-110">🎨</span>
-        <span className="text-sm font-medium">ساخت تصویر</span>
-        <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-          AI
-        </span>
-      </button>
-    )
-  }
-
-  return (
-    <div className="glass rise-in w-full rounded-[1.4rem] p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-medium">
-          🎨 پرامپت تصویرسازی — میتونی ویرایشش کنی
-        </p>
-        <button onClick={() => setExpanded(false)} className="rounded-md p-1 transition-colors hover:bg-white/10" style={{ color: 'var(--text-secondary)' }} title="بستن">
-          <X size={14} />
-        </button>
-      </div>
-      <textarea
-        value={prompt}
-        rows={3}
-        dir="rtl"
-        className="w-full resize-none rounded-xl bg-white/5 px-3 py-2 text-xs leading-relaxed outline-none"
-        style={{ color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
-        onChange={e => setPrompt(e.target.value)}
-      />
-      <button
-        onClick={() => onSend(prompt)}
-        disabled={disabled || !prompt.trim()}
-        className="mt-2 flex h-9 items-center gap-2 rounded-full px-4 text-xs font-medium text-white transition-all hover:scale-[1.03] disabled:opacity-50"
-        style={{ background: 'var(--accent)' }}
-      >
-        <Sparkles size={13} /> تولید کن
-      </button>
-    </div>
-  )
-}
-
 export function Welcome(): React.JSX.Element {
   const aui = useAui()
   const isRunning = useAuiState(s => s.thread.isRunning)
   const [text, setText] = useState('')
   const [hint, setHint] = useState('')
+  const [attachments, setAttachments] = useState<{ name: string; content: string }[]>([])
+  const [listening, setListening] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const recRef = useRef<unknown>(null)
+  const openBrowser = useUiStore((s) => s.openBrowser)
+  const openTerminal = useUiStore((s) => s.openTerminal)
 
   const send = (value: string): void => {
     const v = value.trim()
-    if (!v) return
-    aui.thread.append(v)
+    let body = ''
+    if (attachments.length) {
+      body += attachments.map((a) => `[پیوست فایل: ${a.name}]\n${a.content}`).join('\n\n') + '\n\n'
+    }
+    if (v) body += v
+    if (!body.trim()) return
+    aui.thread.append(body)
+    setText('')
+    setAttachments([])
+  }
+
+  const onPick = (files: FileList | null): void => {
+    if (!files) return
+    Array.from(files).forEach((f) => {
+      const r = new FileReader()
+      r.onload = () => setAttachments((a) => [...a, { name: f.name, content: String(r.result ?? '') }])
+      r.readAsText(f)
+    })
+  }
+
+  const startVoice = (): void => {
+    const SR = (window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown }).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: new () => unknown }).webkitSpeechRecognition
+    if (!SR) {
+      setHint('مرورگرت از ورودی صوتی پشتیبانی نمی‌کند')
+      return
+    }
+    const rec = new SR() as { lang: string; interimResults: boolean; onresult: (e: unknown) => void; onend: () => void; start: () => void }
+    rec.lang = 'fa-IR'
+    rec.interimResults = true
+    rec.onresult = (e: unknown) => {
+      const res = (e as { results: Array<Array<{ transcript: string }>> }).results
+      let t = ''
+      for (let i = 0; i < res.length; i++) t += res[i][0].transcript
+      setText(t)
+    }
+    rec.onend = () => setListening(false)
+    recRef.current = rec
+    setListening(true)
+    rec.start()
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-6 pb-4">
-      {/* کارت ساخت تصویر — جایگزین 🧭 قدیمی (بخش ۴-ج سند فاز ۲) */}
-      <div className="rise-in w-full max-w-xs text-center">
-        <ImageGenCard onSend={send} disabled={isRunning} />
-      </div>
-
+      <div className="flex h-full flex-col items-center justify-center gap-6 px-6 pb-4">
       {/* گوی با افکت فکر کردن */}
       <div className="rise-in">
         <ThinkingOrb size={145} isThinking={isRunning} />
@@ -110,59 +92,41 @@ export function Welcome(): React.JSX.Element {
       {/* کادر نوشتن — وصل به runtime */}
       <div className="rise-in stagger-2 w-full max-w-xl">
         <div className="glass glass-accent-ring rounded-[1.6rem] p-2">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-2 pb-2">
+              {attachments.map((a, i) => (
+                <span key={i} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] glass" style={{ color: 'var(--text-secondary)' }}>
+                  <FileText size={12} /> {a.name}
+                  <button onClick={() => setAttachments((arr) => arr.filter((_, j) => j !== i))} className="rounded-full p-0.5 hover:bg-white/10"><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
           <input
             value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => {
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 send(text)
               }
             }}
-            placeholder={isRunning ? 'دارم جواب میدم...' : 'از Atlas بپرس...'}
+            placeholder={isRunning ? 'دارم جواب می‌دهم...' : 'از Atlas بپرس...'}
             autoFocus
             disabled={isRunning}
             className="w-full bg-transparent px-4 py-3 text-sm outline-none placeholder:opacity-50 disabled:opacity-50"
             style={{ color: 'var(--text-primary)' }}
           />
+          <input ref={fileRef} type="file" multiple hidden onChange={(e) => onPick(e.target.files)} />
           <div className="flex items-center gap-1 px-1 pb-1">
-            {[Paperclip, Globe, Sparkles, Code2].map((Icon, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  const hints = [
-                    'پیوست فایل در فاز بعدی فعال میشود — فعلاً متن/کد بفرست',
-                    'جستوجوی وب در فاز بعدی فعال میشود',
-                    'مهارتها را از فروشگاه سایدبار نصب کن 🧩',
-                    'اجرای کد در فاز بعدی فعال میشود'
-                  ]
-                  setHint(hints[i])
-                }}
-                className="rounded-xl p-2 transition-all hover:scale-110"
-                style={{ color: 'var(--text-secondary)' }}
-                title="اطلاعات"
-              >
-                <Icon size={16} />
-              </button>
-            ))}
+            <button onClick={() => fileRef.current?.click()} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="پیوست فایل"><Paperclip size={16} /></button>
+            <button onClick={() => openBrowser(text ? `https://duckduckgo.com/html/?q=${encodeURIComponent(text)}` : undefined)} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="جستجوی وب"><Globe size={16} /></button>
+            <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-skills'))} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="فروشگاه مهارتها"><Sparkles size={16} /></button>
+            <button onClick={() => openTerminal()} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="اجرای کد / ترمینال"><Code2 size={16} /></button>
             {text.trim() ? (
-              <button
-                onClick={() => send(text)}
-                className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-110"
-                style={{ background: 'var(--accent)' }}
-                title="ارسال (Enter)"
-              >
-                <SendHorizontalIcon size={16} />
-              </button>
+              <button onClick={() => send(text)} className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-110" style={{ background: 'var(--accent)' }} title="ارسال (Enter)"><SendHorizontalIcon size={16} /></button>
             ) : (
-              <button
-                onClick={() => setHint('ورودی صوتی در فاز بعدی فعال میشود 🎙️')}
-                className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-105"
-                style={{ background: 'var(--accent)' }}
-                title="ورودی صوتی"
-              >
-                <Mic size={16} />
-              </button>
+              <button onClick={startVoice} className={`mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-105 ${listening ? 'animate-pulse' : ''}`} style={{ background: listening ? '#ef4444' : 'var(--accent)' }} title="ورودی صوتی"><Mic size={16} /></button>
             )}
           </div>
           {hint && (

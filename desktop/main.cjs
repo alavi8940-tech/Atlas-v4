@@ -4,6 +4,7 @@
  */
 const { app, BrowserWindow, shell, Menu } = require('electron')
 const path = require('node:path')
+const { registerBackend } = require('./backend.cjs')
 
 app.setName('Atlas')
 
@@ -17,11 +18,13 @@ function createWindow() {
     backgroundColor: '#05060a',
     autoHideMenuBar: true,
     show: false,
-    webPreferences: {
-      contextIsolation: true,
-      sandbox: true,
-      spellcheck: false
-    }
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: false,
+        spellcheck: false,
+        webviewTag: true,
+        preload: path.join(__dirname, 'preload.cjs')
+      }
   })
 
   // حذف منوی پیشفرض (الزام امنیتی مستند)
@@ -45,7 +48,10 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  registerBackend()
+  createWindow()
+})
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })

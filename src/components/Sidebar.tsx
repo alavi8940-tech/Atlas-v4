@@ -3,7 +3,7 @@
  * گروهبندی، جستوجوی زنده، پین/ستاره/تغییرنام/حذف + فروشگاه مهارتها و تنظیمات
  */
 import { MessageSquarePlus, PanelRightClose, Pin, Search, Trash2, Settings, Puzzle, Star, Pencil, Check, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { SettingsDialog } from '@/components/SettingsDialog'
 import { SkillsStorePanel } from '@/components/SkillsStorePanel'
 import { useSkillsStore } from '@/stores/skillsStore'
@@ -32,6 +32,13 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
   const setActive = useConversationsStore(s => s.setActive)
 
   const installedCount = useSkillsStore(s => Object.keys(s.installed).length)
+
+  // باز شدن فروشگاه مهارتها از دکمهٔ مرورگر/پرامپت (رویداد سراسری)
+  useEffect(() => {
+    const h = (): void => setSkillsOpen(true)
+    window.addEventListener('atlas:open-skills', h)
+    return () => window.removeEventListener('atlas:open-skills', h)
+  }, [])
 
   // حذف پیامهای مکالمهٔ حذفشده (آبشاری)
   const removeCascade = (id: string): void => {

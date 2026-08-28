@@ -89,6 +89,9 @@ interface SettingsState extends ModelSettings {
   /** وضعیت گوی: idle | thinking | listening */
   orbState: 'idle' | 'thinking' | 'listening'
   setOrbState: (s: 'idle' | 'thinking' | 'listening') => void
+  /** حالت عامل: ابزارهای سیستمی (شل/فایل/موس/کیبورد/صفحه) فعال باشند؟ */
+  agentEnabled: boolean
+  setAgentEnabled: (v: boolean) => void
   /** بهروزرسانی جزئی تنظیمات مدل */
   setModel: (patch: Partial<ModelSettings>) => void
   /** برگرداندن تنظیمات مدل به پیشفرض */
@@ -103,6 +106,8 @@ export const useSettingsStore = create<SettingsState>()(
       setTheme: theme => set({ theme }),
       orbState: 'idle',
       setOrbState: orbState => set({ orbState }),
+      agentEnabled: false,
+      setAgentEnabled: v => set({ agentEnabled: v }),
       setModel: patch => set(patch),
       resetModel: () => set({ ...DEFAULT_MODEL_SETTINGS })
     }),
@@ -120,7 +125,8 @@ export const useSettingsStore = create<SettingsState>()(
         apiModel: s.apiModel,
         anthropicApiKey: s.anthropicApiKey,
         anthropicModel: s.anthropicModel,
-        systemPrompt: s.systemPrompt
+        systemPrompt: s.systemPrompt,
+        agentEnabled: s.agentEnabled
       })
     }
   )

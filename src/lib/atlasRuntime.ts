@@ -11,8 +11,9 @@ import {
 import { streamText, type LanguageModel } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { getModelSettings } from '@/stores/settingsStore'
+import { getModelSettings, useSettingsStore } from '@/stores/settingsStore'
 import { buildSystemPrompt } from '@/lib/corePrompt'
+import { buildAgentTools } from '@/lib/agentTools'
 
 /** ساخت مدل بر اساس تنظیمات فعلی — نبودِ model یعنی پیام خطا برای کاربر */
 function resolveModel(): { model?: LanguageModel; error?: string } {
@@ -76,11 +77,16 @@ const AtlasChatAdapter: ChatModelAdapter = {
     }
 
     try {
+      const agentEnabled = useSettingsStore.getState().agentEnabled
+      const hasDesktop = typeof window !== 'undefined' && !!(window as unknown as { atlasAPI?: unknown }).atlasAPI
+      const tools = agentEnabled && hasDesktop ? buildAgentTools() : undefined
+
       const result = streamText({
         model,
         system: buildSystemPrompt(settings.systemPrompt),
         messages: toAiSdkMessages(options.messages),
-        abortSignal: options.abortSignal
+        abortSignal: options.abortSignal,
+        ...(tools ? { tools, maxSteps: 12 } : {})
       })
 
       let emitted = false

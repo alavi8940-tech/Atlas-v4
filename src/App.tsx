@@ -13,7 +13,12 @@ import {
 import type { ProviderKind } from '@/stores/settingsStore'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { useAtlasRuntime } from '@/lib/atlasRuntime'
-import { PanelRightOpen, Sparkles } from 'lucide-react'
+import { AgentActivityPanel } from '@/components/AgentActivityPanel'
+import { InternalBrowser } from '@/components/InternalBrowser'
+import { TerminalPanel } from '@/components/TerminalPanel'
+import { useUiStore } from '@/stores/uiStore'
+import { useActivityStore, formatBackendActivity } from '@/stores/activityStore'
+import { PanelRightOpen, Sparkles, Bot, Globe, Terminal } from 'lucide-react'
 
 function App(): React.JSX.Element {
   const engine = useEngineInfo()
@@ -21,6 +26,10 @@ function App(): React.JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
+  const agentEnabled = useSettingsStore(s => s.agentEnabled)
+  const panel = useUiStore((s) => s.panel)
+  const setPanel = useUiStore((s) => s.setPanel)
 
   const conversations = useConversationsStore(s => s.conversations)
   const activeId = useConversationsStore(s => s.activeId)
@@ -66,6 +75,16 @@ function App(): React.JSX.Element {
     const unsub = runtime.thread.subscribe(check)
     return () => { alive = false; unsub() }
   }, [runtime])
+
+  /* ─── اشتراک فعالیت ابزارها از پروسهٔ اصلی ─── */
+  useEffect(() => {
+    const api = (window as unknown as { atlasAPI?: { onActivity: (cb: (d: unknown) => void) => () => void } }).atlasAPI
+    if (!api?.onActivity) return
+    const off = api.onActivity((d) => {
+      useActivityStore.getState().push(formatBackendActivity(d as Parameters<typeof formatBackendActivity>[0]))
+    })
+    return off
+  }, [])
 
   /* ─── سوییچ مکالمه: ذخیرهٔ قبلی و بازیابی مقصد ─── */
   const prevActiveRef = useRef<string | null>(null)
@@ -153,19 +172,46 @@ function App(): React.JSX.Element {
                 <PanelRightOpen size={15} />
               </button>
             )}
+            <button
+              onClick={() => setPanel(panel === 'browser' ? 'chat' : 'browser')}
+              className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+              style={{ color: panel === 'browser' ? 'var(--accent)' : 'var(--text-secondary)' }}
+              title="مرورگر داخلی"
+            >
+              <Globe size={13} /> مرورگر
+            </button>
+            <button
+              onClick={() => setPanel(panel === 'terminal' ? 'chat' : 'terminal')}
+              className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+              style={{ color: panel === 'terminal' ? 'var(--accent)' : 'var(--text-secondary)' }}
+              title="ترمینال"
+            >
+              <Terminal size={13} /> ترمینال
+            </button>
             <span className="mr-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] glass" style={{ color: 'var(--text-secondary)' }}>
               <Sparkles size={11} style={{ color: 'var(--accent)' }} /> Atlas v4 · {engine}
               {conversations.length > 0 && ` · ${conversations.length} مکالمه`}
             </span>
+            {agentEnabled && (
+              <button
+                onClick={() => setActivityOpen(o => !o)}
+                className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+                style={{ color: 'var(--accent)' }}
+                title="فعالیت عامل"
+              >
+                <Bot size={13} /> عامل
+              </button>
+            )}
           </div>
 
           <div className="min-h-0 flex-1">
-            {hasStarted ? <Thread /> : <Welcome />}
+            {panel === 'browser' ? <InternalBrowser /> : panel === 'terminal' ? <TerminalPanel /> : hasStarted ? <Thread /> : <Welcome />}
           </div>
         </main>
       </div>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AgentActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
     </AssistantRuntimeProvider>
   )
 }

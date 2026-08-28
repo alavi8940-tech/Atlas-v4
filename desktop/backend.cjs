@@ -1,0 +1,260 @@
+/**
+ * Atlas Desktop — Backend Agent
+ * پروسهٔ اصلی الکترون: اجرای ابزارهای عامل روی سیستم واقعی.
+ * از طریق IPC (atlas:tool) از رندرر فراخوانی میشود.
+ */
+const { ipcMain, app, BrowserWindow, clipboard, screen, shell } = require("electron");
+const fs = require("node:fs");
+const fsp = require("node:fs/promises");
+const path = require("node:path");
+const os = require("node:os");
+const { exec, spawn } = require("node:child_process");
+
+const MAX_OUTPUT = 200000;
+const MAX_FILE_READ = 400000;
+const COMMAND_TIMEOUT = 30000;
+
+let memoryPath = null;
+
+function memFile() {
+  if (!memoryPath) {
+    memoryPath = path.join(app.getPath("userData"), "atlas-memory.json");
+  }
+  return memoryPath;
+}
+
+function readMemory() {
+  try {
+    return JSON.parse(fs.readFileSync(memFile(), "utf8") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeMemory(obj) {
+  fsp.writeFile(memFile(), JSON.stringify(obj, null, 2)).catch(() => {});
+}
+
+function broadcast(activity) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send("atlas:activity", activity);
+  }
+}
+
+/** اجرای فرمان با محدودیت زمان و حجم خروجی */
+function runRaw(command, { cwd, timeoutMs = COMMAND_TIMEOUT, maxBuffer } = {}) {
+  return new Promise((resolve) => {
+    exec(
+      command,
+      {
+        cwd: cwd || undefined,
+        timeout: timeoutMs,
+        maxBuffer: maxBuffer || 64 * 1024 * 1024,
+        windowsHide: true,
+        env: { ...process.env, ATLAS_AGENT: "1" },
+      },
+      (error, stdout, stderr) => {
+        const timedOut = !!error && (error.killed || error.signal === "SIGKILL");
+        resolve({
+          stdout: String(stdout || "").slice(0, MAX_OUTPUT),
+          stderr: String(stderr || "").slice(0, MAX_OUTPUT),
+          exitCode: error && typeof error.code === "number" ? error.code : error ? 1 : 0,
+          timedOut,
+          signal: error && error.signal ? error.signal : null,
+        });
+      },
+    );
+  });
+}
+
+/** اجرای فایل با آرگومان (بدون پوسته) */
+function runFile(cmd, args = [], timeoutMs = COMMAND_TIMEOUT) {
+  return new Promise((resolve) => {
+    const cp = spawn(cmd, args, { windowsHide: true, timeout: timeoutMs });
+    let out = "";
+    let err = "";
+    const to = setTimeout(() => cp.kill("SIGKILL"), timeoutMs + 5000);
+    cp.stdout.on("data", (d) => (out += d));
+    cp.stderr.on("data", (d) => (err += d));
+    cp.on("close", (code, signal) =>
+      resolve({
+        stdout: out.slice(0, MAX_OUTPUT),
+        stderr: err.slice(0, MAX_OUTPUT),
+        exitCode: code ?? 0,
+        signal,
+      }),
+    );
+    cp.on("error", (e) => resolve({ stdout: out, stderr: String(e.message), exitCode: 127 }));
+    clearTimeout(to);
+  });
+}
+
+/* ═════════ ابزارها ═════════ */
+
+const tools = {
+  /* ─── اطلاعات سیستم ─── */
+  system_info: async () => ({
+    platform: process.platform,
+    arch: os.arch(),
+    hostname: os.hostname(),
+    homedir: os.homedir(),
+    cpus: os.cpus().length,
+    uptimeSec: Math.floor(os.uptime()),
+    totalMemMB: Math.round(os.totalmem() / 1024 / 1024),
+    freeMemMB: Math.round(os.freemem() / 1024 / 1024),
+    displays: screen.getAllDisplays().length,
+  }),
+
+  /* ─── فایل‌سیستم ─── */
+  fs_list: async ({ path: p }) => {
+    const base = p || os.homedir();
+    const entries = await fsp.readdir(base, { withFileTypes: true });
+    const items = entries
+      .map((e) => ({
+        name: e.name,
+        type: e.isDirectory() ? "dir" : e.isSymbolicLink() ? "link" : "file",
+      }))
+      .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
+    return { path: base, count: items.length, entries: items.slice(0, 400) };
+  },
+
+  fs_read: async ({ path: p, limit }) => {
+    const stat = await fsp.stat(p);
+    if (stat.isDirectory()) return { isDir: true, path: p };
+    const size = stat.size;
+    if (size > MAX_FILE_READ * 4) {
+      return { path: p, size, truncated: true, note: "فایل بزرگ است؛ از fs_read با limit استفاده کنید." };
+    }
+    const buf = await fsp.readFile(p);
+    const text = buf.toString("utf8");
+    const limited = limit ? text.slice(0, limit) : text.slice(0, MAX_FILE_READ);
+    return { path: p, size, isBinary: false, content: limited, truncated: limit ? text.length > limit : size > MAX_FILE_READ };
+  },
+
+  fs_write: async ({ path: p, content, append }) => {
+    await fsp.mkdir(path.dirname(p), { recursive: true });
+    if (append) await fsp.appendFile(p, content);
+    else await fsp.writeFile(p, content);
+    const stat = await fsp.stat(p);
+    return { path: p, bytes: stat.size, mode: append ? "append" : "write" };
+  },
+
+  fs_mkdir: async ({ path: p }) => {
+    await fsp.mkdir(p, { recursive: true });
+    return { path: p, created: true };
+  },
+
+  fs_exists: async ({ path: p }) => {
+    try {
+      const s = await fsp.stat(p);
+      return { path: p, exists: true, type: s.isDirectory() ? "dir" : "file", size: s.size };
+    } catch {
+      return { path: p, exists: false };
+    }
+  },
+
+  /* ─── شل ─── */
+  shell_exec: async ({ command, cwd, timeoutMs }) => {
+    const r = await runRaw(command, { cwd, timeoutMs });
+    return r;
+  },
+
+  /* ─── فرآیندها ─── */
+  proc_list: async () => {
+    const { stdout } = await runRaw("ps -eo pid,comm,%cpu,etime --sort=-%cpu", { timeoutMs: 8000 });
+    const lines = stdout.trim().split("\n").slice(1);
+    const processes = lines
+      .map((l) => {
+        const m = l.trim().split(/\s+/);
+        return { pid: Number(m[0]), name: m[1], cpu: Number(m[2]), elapsed: m[3] };
+      })
+      .filter((p) => !Number.isNaN(p.pid))
+      .slice(0, 80);
+    return { count: processes.length, processes };
+  },
+
+  proc_kill: async ({ pid, signal = "SIGTERM" }) => {
+    try {
+      process.kill(Number(pid), signal);
+      return { pid: Number(pid), killed: true, signal };
+    } catch (e) {
+      return { pid: Number(pid), killed: false, error: e.message };
+    }
+  },
+
+  /* ─── کلیپبورد ─── */
+  clipboard_read: async () => ({ text: clipboard.readText() }),
+  clipboard_write: async ({ text }) => {
+    clipboard.writeText(text);
+    return { written: true, length: text.length };
+  },
+
+  /* ─── ماوس (لینوکس: xdotool) ─── */
+  mouse_move: async ({ x, y }) => runFile("xdotool", ["mousemove", String(x), String(y)]),
+  mouse_click: async ({ button = "left", x, y, count = 1 }) => {
+    const b = { left: 1, middle: 2, right: 3 }[button] ?? 1;
+    const parts = [];
+    if (x != null && y != null) parts.push("mousemove", String(x), String(y));
+    for (let i = 0; i < Math.max(1, count); i++) parts.push("click", String(b));
+    return runFile("xdotool", parts);
+  },
+  mouse_scroll: async ({ dx = 0, dy = 0 }) => {
+    const parts = [];
+    const down = Math.max(0, dy);
+    const up = Math.max(0, -dy);
+    for (let i = 0; i < down; i++) parts.push("click", "5");
+    for (let i = 0; i < up; i++) parts.push("click", "4");
+    if (parts.length === 0) return { stdout: "", stderr: "", exitCode: 0 };
+    return runFile("xdotool", parts);
+  },
+
+  /* ─── کیبورد (لینوکس: xdotool) ─── */
+  keyboard_type: async ({ text }) => runFile("xdotool", ["type", "--", String(text)]),
+  keyboard_press: async ({ key }) => runFile("xdotool", ["key", String(key)]),
+
+  /* ─── حافظهٔ بلندمدت (JSON در userData) ─── */
+  memory_set: async ({ key, value }) => {
+    const m = readMemory();
+    m[key] = { value, updatedAt: new Date().toISOString() };
+    writeMemory(m);
+    return { key, stored: true };
+  },
+  memory_get: async ({ key }) => {
+    const m = readMemory();
+    if (!(key in m)) return { key, found: false };
+    return { key, found: true, value: m[key].value, updatedAt: m[key].updatedAt };
+  },
+  memory_list: async () => {
+    const m = readMemory();
+    return { keys: Object.keys(m), count: Object.keys(m).length };
+  },
+  memory_delete: async ({ key }) => {
+    const m = readMemory();
+    const had = key in m;
+    delete m[key];
+    writeMemory(m);
+    return { key, deleted: had };
+  },
+};
+
+function registerBackend() {
+  ipcMain.handle("atlas:tool", async (_e, { tool, args }) => {
+    const fn = tools[tool];
+    if (!fn) return { ok: false, error: `ابزار ناشناخته: ${tool}` };
+    try {
+      const result = await fn(args || {});
+      broadcast({ tool, args, result, ts: Date.now() });
+      return { ok: true, ...result };
+    } catch (err) {
+      const error = err && err.message ? err.message : String(err);
+      broadcast({ tool, args, error, ts: Date.now() });
+      return { ok: false, error };
+    }
+  });
+
+  ipcMain.on("atlas:open-external", (_e, url) => {
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) shell.openExternal(url);
+  });
+}
+
+module.exports = { registerBackend, tools };
