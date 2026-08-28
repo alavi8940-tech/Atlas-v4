@@ -196,6 +196,7 @@ function App(): React.JSX.Element {
         <div className="atlas-aurora-bg" aria-hidden />
         <div className="atlas-grain" aria-hidden />
         <div className="bg-grid-dots pointer-events-none fixed inset-0" aria-hidden />
+        <div className="aurora-blobs pointer-events-none fixed inset-0 -z-10" aria-hidden />
 
         {sidebarOpen ? (
           <Sidebar onClose={() => setSidebarOpen(false)} />
@@ -262,8 +263,7 @@ function App(): React.JSX.Element {
             )}
             <button
               onClick={() => setToolsOpen(o => !o)}
-              className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
-              style={{ color: toolsOpen ? 'var(--accent)' : 'var(--text-secondary)' }}
+              className="btn-gradient flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
               title="ابزارها و قابلیت‌های پیشرفته"
             >
               <Wrench size={13} /> ابزارها

@@ -13,6 +13,7 @@ import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText
 import { Sparkles as SparklesFx } from '@/components/fx/Sparkles'
 import { Marquee } from '@/components/fx/Marquee'
 import { Typewriter } from '@/components/fx/Typewriter'
+import { ParticleField } from '@/components/fx/ParticleField'
 import { celebrate } from '@/lib/celebrate'
 
 const SUGGESTIONS = [
@@ -127,7 +128,8 @@ export function Welcome(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-8">
+    <div className="relative flex h-full flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-8">
+      <ParticleField count={48} className="pointer-events-none absolute inset-0 -z-10 opacity-70" />
       {/* گوی با افکت فکر کردن + ذرات درخشان */}
       <motion.div
         className="rise-in relative"

@@ -17,6 +17,7 @@ import { useActivityStore } from '@/stores/activityStore'
 import { useToastStore } from '@/stores/toastStore'
 import { AnimatedNumber } from '@/components/fx/AnimatedNumber'
 import { celebrate } from '@/lib/celebrate'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useSettingsStore, getModelSettings } from '@/stores/settingsStore'
 import { useConversationsStore, useMessagesStore } from '@/stores/conversationsStore'
 import { proxyFetch } from '@/lib/modelCatalog'
@@ -212,7 +213,18 @@ function SystemTab(): React.JSX.Element {
     api?.invokeTool('system_info', {}).then(r => setInfo(r)).catch(() => {})
   }, [])
   useEffect(() => { refresh(); timer.current = setInterval(refresh, 3000); return () => { if (timer.current) clearInterval(timer.current) } }, [refresh])
-  if (!info) return <p className="text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>در حال دریافت اطلاعات سیستم… (فقط دسکتاپ)</p>
+  if (!info) return (
+    <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-2">
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-14 rounded-2xl" />
+      </div>
+      <Skeleton className="h-12 rounded-2xl" />
+      <p className="text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>در حال دریافت اطلاعات سیستم… (فقط دسکتاپ)</p>
+    </div>
+  )
   const total = Number(info.totalMemMB) || 1
   const free = Number(info.freeMemMB) || 0
   const usedPct = Math.round((1 - free / total) * 100)
@@ -228,6 +240,17 @@ function SystemTab(): React.JSX.Element {
         <div className="mb-1 flex justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}><span>مصرف حافظه</span><span>{usedPct}%</span></div>
         <div className="h-2 overflow-hidden rounded-full" style={{ background: 'rgba(128,128,128,.15)' }}>
           <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${usedPct}%`, background: 'linear-gradient(90deg,var(--accent),var(--accent2))' }} />
+        </div>
+      </div>
+      <div className="col-span-2 flex items-center gap-3 rounded-2xl p-3 glass animate-in fade-in zoom-in-95 duration-500">
+        <div className="relative h-14 w-14 shrink-0 rounded-full" style={{ background: `conic-gradient(var(--accent) ${usedPct}%, rgba(128,128,128,.15) 0)` }}>
+          <div className="absolute inset-[6px] flex items-center justify-center rounded-full" style={{ background: 'var(--bg-base)' }}>
+            <span className="text-xs font-semibold">{usedPct}%</span>
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>حافظهٔ استفاده‌شده</div>
+          <div className="text-sm font-semibold">{Math.round(total - free)} / {Math.round(total)} MB</div>
         </div>
       </div>
       <Button onClick={refresh}><RefreshCw size={12} /> بروزرسانی</Button>

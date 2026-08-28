@@ -96,9 +96,9 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
 
       {/* مکالمهٔ جدید */}
       <button onClick={() => { createConv(); onClose?.() }}
-        className="glass glass-hover rise-in stagger-2 mb-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+        className="btn-gradient rise-in stagger-2 mb-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium">
         <MessageSquarePlus size={16} /> مکالمهٔ جدید
-        <kbd className="mr-auto rounded-md px-1.5 py-0.5 text-[9px] glass" style={{ color: 'var(--text-secondary)' }}>Ctrl K</kbd>
+        <kbd className="mr-auto rounded-md px-1.5 py-0.5 text-[9px] glass" style={{ color: 'rgba(255,255,255,.8)' }}>Ctrl K</kbd>
       </button>
 
        {/* لیست گروهی */}
