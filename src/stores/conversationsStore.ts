@@ -9,6 +9,7 @@ import { persist } from 'zustand/middleware'
 export interface ConversationMeta {
   id: string
   title: string
+  preview?: string
   createdAt: number
   updatedAt: number
   pinned: boolean
@@ -49,7 +50,7 @@ export const useConversationsStore = create<ConvState>()(
       create: () => {
         const now = Date.now()
         const conv: ConversationMeta = {
-          id: genId(), title: NEW_TITLE,
+          id: genId(), title: NEW_TITLE, preview: '',
           createdAt: now, updatedAt: now,
           pinned: false, starred: false
         }
@@ -86,10 +87,16 @@ export const useConversationsStore = create<ConvState>()(
 
       ensureTitle: (id, firstMessage) => {
         const conv = get().conversations.find(c => c.id === id)
-        if (!conv || conv.title !== NEW_TITLE) return
-        const title = firstMessage.trim().replace(/\s+/g, ' ').slice(0, 48)
-        if (!title) return
-        get().rename(id, title)
+        if (!conv) return
+        const clean = firstMessage.trim().replace(/\s+/g, ' ').slice(0, 80)
+        const preview = clean.length ? clean : (conv.preview ?? '')
+        const title = conv.title === NEW_TITLE
+          ? clean.slice(0, 48) || conv.title
+          : conv.title
+        set(s => ({
+          conversations: s.conversations.map(c =>
+            c.id === id ? { ...c, title, preview, updatedAt: Date.now() } : c)
+        }))
       },
 
       touch: id =>

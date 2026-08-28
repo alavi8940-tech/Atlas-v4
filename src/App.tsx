@@ -235,6 +235,10 @@ function App(): React.JSX.Element {
                <Sparkles size={11} style={{ color: 'var(--accent)' }} /> Atlas v4 · {engine}
                {conversations.length > 0 && ` · ${conversations.length} مکالمه`}
              </span>
+             <span className="hidden items-center gap-1.5 rounded-full px-3 py-1 text-[11px] glass md:flex" style={{ color: 'var(--text-primary)' }}>
+               <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
+               <span className="font-medium">{engine}</span>
+             </span>
              <button
                onClick={() => setPaletteOpen(true)}
                className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"

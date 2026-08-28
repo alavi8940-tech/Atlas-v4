@@ -4,6 +4,7 @@
  */
 import { MessageSquarePlus, PanelRightClose, Pin, Search, Trash2, Settings, Puzzle, Star, Pencil, Check, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import { SettingsDialog } from '@/components/SettingsDialog'
 import { SkillsStorePanel } from '@/components/SkillsStorePanel'
 import { useSkillsStore } from '@/stores/skillsStore'
@@ -115,28 +116,38 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
             {items.map(c => (
               <div key={c.id}
                 onClick={() => setActive(c.id)}
-                className={`group mb-1 flex w-full cursor-pointer items-center gap-2 rounded-2xl px-3 py-2.5 text-right text-xs transition-all glass glass-hover`}
+                className={`group relative mb-1 flex w-full cursor-pointer items-center gap-2 rounded-2xl px-3 py-2 text-right transition-all glass glass-hover`}
                 style={{
                   background: activeId === c.id ? 'var(--accent-soft)' : undefined,
                   borderColor: activeId === c.id ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : undefined,
                   color: 'var(--text-primary)'
                 }}>
+                {activeId === c.id && (
+                  <motion.span layoutId="activeConv"
+                    className="absolute inset-y-1.5 left-0 w-1 rounded-full"
+                    style={{ background: 'var(--accent)' }} />
+                )}
                 {c.pinned && <Pin size={11} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
                 {c.starred && <Star size={11} fill="currentColor" style={{ color: '#facc15', flexShrink: 0 }} />}
 
-                {renamingId === c.id ? (
-                  <input autoFocus value={renameText}
-                    onChange={e => setRenameText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') commitRename()
-                      if (e.key === 'Escape') setRenamingId(null)
-                    }}
-                    onClick={e => e.stopPropagation()}
-                    className="min-w-0 flex-1 rounded-lg bg-transparent outline-none"
-                    style={{ color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }} />
-                ) : (
-                  <span className="truncate">{c.title}</span>
-                )}
+                <div className="min-w-0 flex-1">
+                  {renamingId === c.id ? (
+                    <input autoFocus value={renameText}
+                      onChange={e => setRenameText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') commitRename()
+                        if (e.key === 'Escape') setRenamingId(null)
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full rounded-lg bg-transparent text-xs outline-none"
+                      style={{ color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }} />
+                  ) : (
+                    <>
+                      <span className="block truncate text-xs font-medium">{c.title}</span>
+                      {c.preview && <span className="block truncate text-[10px] opacity-60">{c.preview}</span>}
+                    </>
+                  )}
+                </div>
 
                 {/* اکشنهای شناور */}
                 <span className="mr-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"

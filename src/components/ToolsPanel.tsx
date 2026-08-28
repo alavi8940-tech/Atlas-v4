@@ -4,6 +4,7 @@
  * جستجوی معنایی، بازپخش جلسه، همگام‌سازی ابری.
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { motion } from 'motion/react'
 import {
   X, Save, Trash2, Play, Plus, RefreshCw, Download, Upload,
   Clock, ListTree, Cpu, Search, Layers, Radio, History, Cloud
@@ -50,9 +51,10 @@ export function ToolsPanel({ open, onClose }: { open: boolean; onClose: () => vo
         <nav className="mb-3 flex flex-wrap gap-1 rounded-2xl p-1 glass">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex items-center gap-1 rounded-xl px-2 py-1 text-[10px] transition-colors"
-              style={tab === t.id ? { background: 'var(--accent-soft)', color: 'var(--accent)' } : { color: 'var(--text-secondary)' }}>
-              {t.icon} {t.label}
+              className="relative flex items-center gap-1 rounded-xl px-2 py-1 text-[10px] transition-colors"
+              style={tab === t.id ? { color: 'var(--accent)' } : { color: 'var(--text-secondary)' }}>
+              {tab === t.id && <motion.span layoutId="toolTab" className="absolute inset-0 rounded-xl" style={{ background: 'var(--accent-soft)' }} />}
+              <span className="relative z-10 flex items-center gap-1">{t.icon} {t.label}</span>
             </button>
           ))}
         </nav>
