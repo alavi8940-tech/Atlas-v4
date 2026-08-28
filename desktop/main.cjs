@@ -20,7 +20,8 @@ function createWindow() {
     show: false,
       webPreferences: {
         contextIsolation: true,
-        sandbox: false,
+        // sandbox:true → پریلود در محیط ایزوله اجرا میشود (فقط API محدود الکترون در دسترس است)
+        sandbox: true,
         spellcheck: false,
         webviewTag: true,
         preload: path.join(__dirname, 'preload.cjs')

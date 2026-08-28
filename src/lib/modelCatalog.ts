@@ -4,6 +4,8 @@
  * Ollama نیتیو:       GET /api/tags           → { models: [{ name, details }] }
  * Anthropic:          GET /v1/models (هدر x-api-key + anthropic-version)
  */
+import type { AtlasAPI } from '@/types/atlas-api'
+
 export type Protocol = 'openai' | 'ollama' | 'anthropic'
 
 export interface CatalogModel {
@@ -49,11 +51,44 @@ function normalizeBase(base: string): string {
   return base.replace(/\/+$/, '')
 }
 
+/**
+ * تایماوت سازگار با محیطهای قدیمی (به‌جای AbortSignal.timeout ناتیو).
+ * یک AbortSignal برمیگرداند که پس از ms میلیثانیه قطع میشود.
+ */
+export function withTimeout(ms: number): AbortSignal {
+  const ac = new AbortController()
+  const t = setTimeout(() => ac.abort(), ms)
+  ac.signal.addEventListener('abort', () => clearTimeout(t), { once: true })
+  return ac.signal
+}
+
+/**
+ * fetch امن: روی نسخهٔ دسکتاپ درخواست را از پروسهٔ اصلی (Electron) عبور میدهد
+ * تا کلیدهای API در لایهٔ شبکهٔ مرورگر (قابل مشاهده با Inspector) ظاهر نشوند.
+ */
+export async function proxyFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const api = (window as unknown as { atlasAPI?: AtlasAPI }).atlasAPI
+  if (api?.proxy) {
+    const r = await api.proxy({
+      url,
+      method: init.method ?? 'GET',
+      headers: (init.headers as Record<string, string>) ?? {},
+      body: typeof init.body === 'string' ? init.body : undefined,
+    })
+    if (!r.ok) throw new Error(r.error ?? 'خطا در پروکسی')
+    return new Response(r.body ?? '', {
+      status: r.status ?? 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  return fetch(url, init)
+}
+
 /** گرفتن مدلها با تایماوت و مدیریت خطای خوانا */
 async function fetchJson(url: string, headers: Record<string, string>): Promise<unknown> {
-  const res = await fetch(url, {
+  const res = await proxyFetch(url, {
     headers,
-    signal: AbortSignal.timeout(10_000)
+    signal: withTimeout(10_000)
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()

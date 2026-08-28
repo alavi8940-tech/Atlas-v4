@@ -47,7 +47,13 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
   }
 
   const filtered = query.trim()
-    ? conversations.filter(c => c.title.includes(query.trim()))
+    ? conversations.filter(c => {
+        const q = query.trim()
+        if (c.title.includes(q)) return true
+        // جستوجو در محتوای پیامهای ذخیرهشدهٔ آن مکالمه
+        const t = useMessagesStore.getState().threads[c.id]
+        return t ? JSON.stringify(t.repository ?? '').toLowerCase().includes(q.toLowerCase()) : false
+      })
     : conversations
   const groups = groupConversations(filtered)
 

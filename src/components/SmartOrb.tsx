@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuiState } from '@assistant-ui/react'
+import { Lottie } from 'lottie-react'
 import { Orb } from '@/components/Orb'
 import { useSettingsStore } from '@/stores/settingsStore'
-
-type LottieComp = React.ComponentType<{ src: unknown; loop?: boolean; autoplay?: boolean; style?: React.CSSProperties }>
 
 /**
  * گوی هوشمند Atlas:
@@ -13,17 +12,13 @@ type LottieComp = React.ComponentType<{ src: unknown; loop?: boolean; autoplay?:
 export function SmartOrb({ size = 150 }: { size?: number }): React.JSX.Element {
   const isRunning = useAuiState(s => s.thread.isRunning)
   const setOrbState = useSettingsStore(s => s.setOrbState)
-  const [LottieComp, setLottieComp] = useState<LottieComp | null>(null)
+  const [aiFlowSrc, setAiFlowSrc] = useState<object | null>(null)
 
-  // بارگذاری تنبل لتی — فقط وقتی اولین بار لازم شد
+  // بارگذاری تنبل JSON لتی (۴.۶ مگابایت) — خارج از باندل اصلی
   useEffect(() => {
-    if (!isRunning || LottieComp) return
-    import('lottie-react').then(mod => {
-      const m = mod as unknown as Record<string, unknown>
-      const C = (m.Lottie ?? m.default) as LottieComp | undefined
-      if (C) setLottieComp(() => C)
-    })
-  }, [isRunning, LottieComp])
+    if (!isRunning || aiFlowSrc) return
+    import('@/assets/lottie/ai-flow.json').then(mod => setAiFlowSrc(mod.default)).catch(() => {})
+  }, [isRunning, aiFlowSrc])
 
   // همگامسازی وضعیت با استور سراسری
   useEffect(() => {
@@ -50,20 +45,16 @@ export function SmartOrb({ size = 150 }: { size?: number }): React.JSX.Element {
       </div>
 
       {/* لتی — فقط حین فکر کردن */}
-      {isRunning && LottieComp && (
+      {isRunning && aiFlowSrc && (
         <div
           className="rise-in absolute drop-shadow-2xl"
           style={{ width: size + 30, height: size + 30 }}
         >
-          <LottieComp src={aiFlowSrc} loop autoplay style={{ width: '100%', height: '100%' }} />
+          <Lottie src={aiFlowSrc} loop autoplay style={{ width: '100%', height: '100%' }} />
         </div>
       )}
     </div>
   )
 }
-
-// بارگذاری یکباره JSON لتی
-import aiFlowJson from '@/assets/lottie/ai-flow.json'
-const aiFlowSrc = aiFlowJson
 
 export default SmartOrb

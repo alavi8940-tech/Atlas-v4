@@ -3,23 +3,18 @@
  * هر ابزار روی پروسهٔ اصلی (Electron) اجرا میشود و از طریق IPC فراخوانی میگردد.
  * در حالت مرورگر (بدون electron) با پیام ملایمی باز میگردد.
  */
-import { jsonSchema, type ToolSet, type Tool } from "ai";
+import { jsonSchema, tool, type ToolSet, type Tool, type Schema } from "ai";
 import { useActivityStore } from "@/stores/activityStore";
+import type { AtlasAPI } from "@/types/atlas-api";
 
 type RawResult = {
-  ok: boolean;
+  ok?: boolean;
   error?: string;
   [key: string]: unknown;
 };
 
-type Api = {
-  invokeTool?: (t: string, a: Record<string, unknown>) => Promise<RawResult>;
-  captureScreen?: () => Promise<string>;
-  onActivity?: (cb: (d: unknown) => void) => () => void;
-};
-
-function getApi(): Api | undefined {
-  return (window as unknown as { atlasAPI?: Api }).atlasAPI;
+function getApi(): AtlasAPI | undefined {
+  return window.atlasAPI;
 }
 
 /** فراخوانی ابزار در پروسهٔ اصلی از طریق preload */
@@ -58,11 +53,12 @@ function atlasTool<Args extends Record<string, unknown>>(config: {
   schema: Record<string, unknown>;
   execute: (args: Args) => Promise<unknown> | unknown;
 }): Tool {
-  return {
+  const t = tool<Args, unknown, Record<string, unknown>>({
     description: config.description,
-    parameters: jsonSchema(config.schema as never),
-    execute: config.execute as never,
-  } as unknown as Tool;
+    inputSchema: jsonSchema(config.schema) as Schema<Args>,
+    execute: async (args: Args) => config.execute(args),
+  })
+  return t as unknown as Tool
 }
 
 export function buildAgentTools(): ToolSet {

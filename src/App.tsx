@@ -39,6 +39,10 @@ function App(): React.JSX.Element {
   const saveThread = useMessagesStore(s => s.save)
   const loadThread = useMessagesStore(s => s.load)
 
+  // اشاره‌گر به جدیدترین runtime (جلوگیری از اجرای اثر عنوان با هر تغییر هویت runtime)
+  const runtimeRef = useRef(runtime)
+  runtimeRef.current = runtime
+
   /** آخرین پیام کاربر که عنوان از آن ساخته شده — برای تشخیص اولین پیام */
   const lastUserCountRef = useRef(0)
 
@@ -78,10 +82,10 @@ function App(): React.JSX.Element {
 
   /* ─── اشتراک فعالیت ابزارها از پروسهٔ اصلی ─── */
   useEffect(() => {
-    const api = (window as unknown as { atlasAPI?: { onActivity: (cb: (d: unknown) => void) => () => void } }).atlasAPI
+    const api = window.atlasAPI
     if (!api?.onActivity) return
     const off = api.onActivity((d) => {
-      useActivityStore.getState().push(formatBackendActivity(d as Parameters<typeof formatBackendActivity>[0]))
+      useActivityStore.getState().push(formatBackendActivity(d))
     })
     return off
   }, [])
@@ -106,8 +110,8 @@ function App(): React.JSX.Element {
     // بارگذاری مکالمهٔ جدید
     try {
       const stored = activeId ? loadThread(activeId) : undefined
-      if (stored?.repository) {
-        runtime.thread.import(stored.repository as never)
+       if (stored?.repository) {
+        runtime.thread.import(stored.repository as Parameters<typeof runtime.thread.import>[0])
       } else {
         runtime.thread.reset()
       }
@@ -119,7 +123,7 @@ function App(): React.JSX.Element {
   useEffect(() => {
     if (!activeId || !hasStarted) return
     try {
-      const msgs = runtime.thread.getState().messages
+      const msgs = runtimeRef.current.thread.getState().messages
       const userMsgs = msgs.filter(m => m.role === 'user')
       if (userMsgs.length > lastUserCountRef.current) {
         lastUserCountRef.current = userMsgs.length
@@ -129,7 +133,7 @@ function App(): React.JSX.Element {
       }
       touch(activeId)
     } catch { /* ignore */ }
-  }, [hasStarted, activeId, runtime, ensureTitle, touch])
+  }, [hasStarted, activeId, ensureTitle, touch])
 
   /* ─── ذخیرهٔ نهایی هنگام خروج صفحه ─── */
   useEffect(() => {

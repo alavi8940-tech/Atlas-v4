@@ -1,8 +1,22 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "unicorn"],
+  "env": { "browser": true, "node": true, "es2022": true },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/jsx-key": "error",
+    "react/no-unknown-property": "error",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-empty-interface": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-debugger": "error",
+    "no-duplicate-imports": "warn",
+    "no-loss-of-precision": "error",
+    "unicorn/prefer-add-event-listener": "off",
+    "unicorn/no-null": "off",
+    "unicorn/prefer-number-properties": "off"
   }
 }

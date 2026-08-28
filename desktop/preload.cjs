@@ -1,7 +1,7 @@
 /**
  * Atlas Desktop — Preload
  * پل امن بین رندرر و پروسهٔ اصلی.
- * sandbox:false (برای دسترسی به electron) + contextIsolation:true
+ * sandbox:true (اجرای ایزوله) + contextIsolation:true → فقط API محدود الکترون در دسترس است.
  */
 const { contextBridge, ipcRenderer, desktopCapturer } = require("electron");
 
@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld("atlasAPI", {
   invokeTool: (tool, args) => ipcRenderer.invoke("atlas:tool", { tool, args }),
   captureScreen,
   openExternal: (url) => ipcRenderer.send("atlas:open-external", url),
+  setConfirm: (enabled) => ipcRenderer.invoke("atlas:set-confirm", enabled),
   onActivity: (cb) => {
     const listener = (_e, data) => cb(data);
     ipcRenderer.on("atlas:activity", listener);

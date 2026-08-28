@@ -15,7 +15,7 @@ import {
 import { useSettingsStore, engineLabel, activeModelName } from '@/stores/settingsStore'
 import type { ProviderKind } from '@/stores/settingsStore'
 import {
-  fetchModelCatalog, MODEL_KIND_META,
+  fetchModelCatalog, MODEL_KIND_META, proxyFetch, withTimeout,
   type CatalogModel, type Protocol
 } from '@/lib/modelCatalog'
 import { PlugZap, Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react'
@@ -30,7 +30,7 @@ const ANTHROPIC_BASE = 'https://api.anthropic.com/v1'
 
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'fail'; message?: string }
 
-/** تست واقعی اتصال بر اساس پروتکل انتخابی */
+/** تست واقعی اتصال بر اساس پروتکل انتخابی (بدون fallback گمراه‌کننده) */
 async function testConnection(
   protocol: Protocol,
   baseURL: string,
@@ -41,48 +41,32 @@ async function testConnection(
     const t0 = Date.now()
     const base = baseURL.replace(/\/+$/, '')
 
-    const init: RequestInit =
+    const headers: Record<string, string> =
       protocol === 'anthropic'
         ? {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: 5,
-              messages: [{ role: 'user', content: 'ping' }]
-            }),
-            signal: AbortSignal.timeout(8000)
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
           }
         : {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-            },
-            body: JSON.stringify({
-              model,
-              messages: [{ role: 'user', content: 'ping' }],
-              max_tokens: 5,
-              stream: false
-            }),
-            signal: AbortSignal.timeout(8000)
+            'Content-Type': 'application/json',
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
           }
 
-    const res = await fetch(`${base}/chat/completions`, init).catch(() =>
-      // آنتراپیک مسیر متفاوتی دارد
+    // آنتراپیک مسیر متفاوتی دارد؛ بقیه /chat/completions
+    const url = protocol === 'anthropic' ? `${base}/messages` : `${base}/chat/completions`
+    const body = JSON.stringify(
       protocol === 'anthropic'
-        ? fetch(`${base}/messages`, init)
-        : Promise.reject(new Error('network'))
+        ? { model, max_tokens: 5, messages: [{ role: 'user', content: 'ping' }] }
+        : { model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 5, stream: false }
     )
 
+    const res = await proxyFetch(url, { method: 'POST', headers, body, signal: withTimeout(8000) })
+
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      return { status: 'fail', message: `HTTP ${res.status} — ${body.slice(0, 140)}` }
+      const text = await res.text().catch(() => '')
+      return { status: 'fail', message: `HTTP ${res.status} — ${text.slice(0, 140)}` }
     }
     const json: unknown = await res.json()
     const okShape =
@@ -177,6 +161,12 @@ function ModelField(props: {
 export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const s = useSettingsStore()
   const [test, setTest] = useState<TestState>({ status: 'idle' })
+  const [confirmDangerous, setConfirmDangerous] = useState(true)
+  const toggleConfirm = (): void => {
+    const next = !confirmDangerous
+    setConfirmDangerous(next)
+    window.atlasAPI?.setConfirm?.(next)
+  }
 
   const activeBase =
     s.provider === 'ollama' ? s.ollamaBaseURL :
@@ -288,15 +278,15 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               onChange={id => s.setModel({ anthropicModel: id })}
               conn={conn} />
             <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              💡 کلید را از console.anthropic.com بگیر — درخواستها مستقیم از مرورگر ارسال میشود
-            </p>
+               💡 کلید را از console.anthropic.com بگیر — روی نسخهٔ دسکتاپ درخواستها از پروسهٔ اصلی عبور میکنند (کلید در مرورگر دیده نمیشود)
+             </p>
           </div>
         )}
 
         {/* ─── پرامپت سیستم ─── */}
         <div className="grid gap-2 rounded-2xl p-3 glass">
           <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>پرامپت سیستم</label>
-          <textarea rows={3} value={s.systemPrompt}
+          <textarea rows={3} value={s.systemPrompt} maxLength={8000}
             onChange={e => s.setModel({ systemPrompt: e.target.value })}
             className="w-full resize-none rounded-xl bg-transparent px-3 py-2 text-xs leading-relaxed outline-none"
             style={inputStyle} />
@@ -324,6 +314,29 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <span
               className="absolute top-0.5 size-5 rounded-full bg-white transition-all duration-200"
               style={{ insetInlineStart: s.agentEnabled ? '22px' : '2px' }}
+            />
+          </button>
+        </div>
+
+        {/* ─── تأیید دستورات خطرناک ─── */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl p-3 glass">
+          <div className="grid gap-0.5">
+            <span className="text-sm font-medium">تأیید دستورات خطرناک</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              پیش از اجرای شل یا کشتن فرآیند، دیالوگ تأیید نشان داده شود. فقط در نسخهٔ دسکتاپ.
+            </span>
+          </div>
+          <button
+            role="switch"
+            aria-checked={confirmDangerous}
+            onClick={toggleConfirm}
+            className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+            style={{ background: confirmDangerous ? 'var(--accent)' : 'rgba(128,128,128,0.3)' }}
+            title="تأیید دستورات خطرناک"
+          >
+            <span
+              className="absolute top-0.5 size-5 rounded-full bg-white transition-all duration-200"
+              style={{ insetInlineStart: confirmDangerous ? '22px' : '2px' }}
             />
           </button>
         </div>

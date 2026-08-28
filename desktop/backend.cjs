@@ -3,7 +3,7 @@
  * پروسهٔ اصلی الکترون: اجرای ابزارهای عامل روی سیستم واقعی.
  * از طریق IPC (atlas:tool) از رندرر فراخوانی میشود.
  */
-const { ipcMain, app, BrowserWindow, clipboard, screen, shell } = require("electron");
+const { ipcMain, app, BrowserWindow, clipboard, screen, shell, dialog } = require("electron");
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
@@ -13,6 +13,68 @@ const { exec, spawn } = require("node:child_process");
 const MAX_OUTPUT = 200000;
 const MAX_FILE_READ = 400000;
 const COMMAND_TIMEOUT = 30000;
+
+/**
+ * نرمال‌سازی و اعتبارسنجی مسیر:
+ * - تیلیدِ ~ به خانهٔ کاربر
+ * - حل کردن نسبی/مطلق و حذف ../ تو در تو
+ * - رد کردن کاراکترهای کنترلی (مثل null byte)
+ * توجه: این ابزارها سطح دسترسی خودِ کاربر را دارند (مانند شل)؛ هدف جلوگیری از
+ * ورودیهای خراب‌کننده است نه جیل کردن فایل‌سیستم.
+ */
+function resolvePath(input) {
+  const raw = typeof input === "string" && input.trim() ? input : os.homedir();
+  if (raw.includes("\0")) throw new Error("مسیر نامعتبر (کاراکتر کنترلی)");
+  const expanded = raw.startsWith("~") ? path.join(os.homedir(), raw.slice(1)) : raw;
+  return path.resolve(expanded);
+}
+
+/* ─── تأیید دستورات خطرناک ─── */
+const DANGEROUS = new Set([
+  "shell_exec", "proc_kill",
+  "mouse_move", "mouse_click", "mouse_scroll",
+  "keyboard_type", "keyboard_press",
+]);
+let confirmDangerous = loadConfirm();
+const confirmPath = path.join(app.getPath("userData"), "atlas-confirm.json");
+
+function loadConfirm() {
+  try {
+    const j = JSON.parse(fs.readFileSync(confirmPath, "utf8"));
+    return j.confirmDangerous !== false;
+  } catch {
+    return true; // پیش‌فرض: تأیید کاربر لازم است
+  }
+}
+function saveConfirm() {
+  fsp.writeFile(confirmPath, JSON.stringify({ confirmDangerous }), "utf8").catch(() => {});
+}
+
+/** نمایش دیالوگ تأیید برای ابزارهای خطرناک (فقط روی دسکتاپ) */
+function requestConfirm(tool, args) {
+  const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+  const detail =
+    tool === "shell_exec"
+      ? String((args && args.command) || "")
+      : tool === "proc_kill"
+        ? `PID: ${args && args.pid}`
+        : JSON.stringify(args || {});
+  const { response, checkboxChecked } = dialog.showMessageBoxSync(win, {
+    type: "warning",
+    title: "Atlas — تأیید دستور سیستمی",
+    message: `Atlas قصد اجرای ابزار «${tool}» را دارد.`,
+    detail,
+    buttons: ["تأیید", "لغو"],
+    defaultId: 0,
+    cancelId: 1,
+    checkboxLabel: "این جلسه را بدون تأیید ادامه بده",
+  });
+  if (checkboxChecked) {
+    confirmDangerous = false;
+    saveConfirm();
+  }
+  return response === 0;
+}
 
 let memoryPath = null;
 
@@ -76,16 +138,19 @@ function runFile(cmd, args = [], timeoutMs = COMMAND_TIMEOUT) {
     const to = setTimeout(() => cp.kill("SIGKILL"), timeoutMs + 5000);
     cp.stdout.on("data", (d) => (out += d));
     cp.stderr.on("data", (d) => (err += d));
-    cp.on("close", (code, signal) =>
+    cp.on("close", (code, signal) => {
+      clearTimeout(to);
       resolve({
         stdout: out.slice(0, MAX_OUTPUT),
         stderr: err.slice(0, MAX_OUTPUT),
         exitCode: code ?? 0,
         signal,
-      }),
-    );
-    cp.on("error", (e) => resolve({ stdout: out, stderr: String(e.message), exitCode: 127 }));
-    clearTimeout(to);
+      });
+    });
+    cp.on("error", (e) => {
+      clearTimeout(to);
+      resolve({ stdout: out, stderr: String(e.message), exitCode: 127 });
+    });
   });
 }
 
@@ -107,7 +172,7 @@ const tools = {
 
   /* ─── فایل‌سیستم ─── */
   fs_list: async ({ path: p }) => {
-    const base = p || os.homedir();
+    const base = resolvePath(p);
     const entries = await fsp.readdir(base, { withFileTypes: true });
     const items = entries
       .map((e) => ({
@@ -119,37 +184,41 @@ const tools = {
   },
 
   fs_read: async ({ path: p, limit }) => {
-    const stat = await fsp.stat(p);
-    if (stat.isDirectory()) return { isDir: true, path: p };
+    const rp = resolvePath(p);
+    const stat = await fsp.stat(rp);
+    if (stat.isDirectory()) return { isDir: true, path: rp };
     const size = stat.size;
     if (size > MAX_FILE_READ * 4) {
-      return { path: p, size, truncated: true, note: "فایل بزرگ است؛ از fs_read با limit استفاده کنید." };
+      return { path: rp, size, truncated: true, note: "فایل بزرگ است؛ از fs_read با limit استفاده کنید." };
     }
-    const buf = await fsp.readFile(p);
+    const buf = await fsp.readFile(rp);
     const text = buf.toString("utf8");
     const limited = limit ? text.slice(0, limit) : text.slice(0, MAX_FILE_READ);
-    return { path: p, size, isBinary: false, content: limited, truncated: limit ? text.length > limit : size > MAX_FILE_READ };
+    return { path: rp, size, isBinary: false, content: limited, truncated: limit ? text.length > limit : size > MAX_FILE_READ };
   },
 
   fs_write: async ({ path: p, content, append }) => {
-    await fsp.mkdir(path.dirname(p), { recursive: true });
-    if (append) await fsp.appendFile(p, content);
-    else await fsp.writeFile(p, content);
-    const stat = await fsp.stat(p);
-    return { path: p, bytes: stat.size, mode: append ? "append" : "write" };
+    const rp = resolvePath(p);
+    await fsp.mkdir(path.dirname(rp), { recursive: true });
+    if (append) await fsp.appendFile(rp, content);
+    else await fsp.writeFile(rp, content);
+    const stat = await fsp.stat(rp);
+    return { path: rp, bytes: stat.size, mode: append ? "append" : "write" };
   },
 
   fs_mkdir: async ({ path: p }) => {
-    await fsp.mkdir(p, { recursive: true });
-    return { path: p, created: true };
+    const rp = resolvePath(p);
+    await fsp.mkdir(rp, { recursive: true });
+    return { path: rp, created: true };
   },
 
   fs_exists: async ({ path: p }) => {
+    const rp = resolvePath(p);
     try {
-      const s = await fsp.stat(p);
-      return { path: p, exists: true, type: s.isDirectory() ? "dir" : "file", size: s.size };
+      const s = await fsp.stat(rp);
+      return { path: rp, exists: true, type: s.isDirectory() ? "dir" : "file", size: s.size };
     } catch {
-      return { path: p, exists: false };
+      return { path: rp, exists: false };
     }
   },
 
@@ -241,6 +310,13 @@ function registerBackend() {
   ipcMain.handle("atlas:tool", async (_e, { tool, args }) => {
     const fn = tools[tool];
     if (!fn) return { ok: false, error: `ابزار ناشناخته: ${tool}` };
+
+    // دریچهٔ امنیتی: تأیید کاربر برای ابزارهای خطرناک
+    if (confirmDangerous && DANGEROUS.has(tool)) {
+      const allowed = requestConfirm(tool, args);
+      if (!allowed) return { ok: false, error: "لغو شد توسط کاربر." };
+    }
+
     try {
       const result = await fn(args || {});
       broadcast({ tool, args, result, ts: Date.now() });
@@ -249,6 +325,25 @@ function registerBackend() {
       const error = err && err.message ? err.message : String(err);
       broadcast({ tool, args, error, ts: Date.now() });
       return { ok: false, error };
+    }
+  });
+
+  ipcMain.handle("atlas:set-confirm", (_e, enabled) => {
+    confirmDangerous = enabled !== false;
+    saveConfirm();
+    return { ok: true, confirmDangerous };
+  });
+
+  ipcMain.handle("atlas:proxy", async (_e, { url, method = "GET", headers = {}, body } = {}) => {
+    try {
+      const m = String(method || "GET").toUpperCase();
+      const init = { method: m, headers };
+      if (m !== "GET" && body !== undefined) init.body = body; // body روی GET غیرمجاز است
+      const res = await fetch(url, init);
+      const text = await res.text();
+      return { ok: true, status: res.status, body: text };
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : String(err) };
     }
   });
 

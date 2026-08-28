@@ -14,7 +14,7 @@ const COLOR: Record<Line['kind'], string> = {
 }
 
 export function TerminalPanel(): React.JSX.Element {
-  const isElectron = typeof window !== 'undefined' && Boolean((window as unknown as { atlasAPI?: unknown }).atlasAPI)
+  const isElectron = typeof window !== 'undefined' && Boolean(window.atlasAPI)
   const [lines, setLines] = useState<Line[]>([
     { kind: 'sys', text: isElectron ? 'ترمینال محلی آماده است — دستورت را بنویس:' : 'ترمینال فقط در نسخهٔ دسکتاپ در دسترس است.' },
   ])
@@ -38,7 +38,8 @@ export function TerminalPanel(): React.JSX.Element {
       return
     }
     try {
-      const api = (window as unknown as { atlasAPI: { invokeTool: (t: string, a: Record<string, unknown>) => Promise<{ stdout?: string; stderr?: string }> } }).atlasAPI
+      const api = window.atlasAPI
+      if (!api) throw new Error('اتصال به پروسهٔ اصلی برقرار نیست')
       const res = await api.invokeTool('shell_exec', { command: c })
       const out = `${res.stdout ?? ''}${res.stderr ? `\n${res.stderr}` : ''}`.trim()
       setLines((l) => [...l, { kind: 'out', text: out || '(بدون خروجی)' }])

@@ -9,7 +9,7 @@ export function InternalBrowser(): React.JSX.Element {
   const [url, setUrl] = useState(initial ?? HOME)
   const [input, setInput] = useState(initial ?? HOME)
   const webviewRef = useRef<unknown>(null)
-  const isElectron = typeof window !== 'undefined' && Boolean((window as unknown as { atlasAPI?: unknown }).atlasAPI)
+  const isElectron = typeof window !== 'undefined' && Boolean(window.atlasAPI)
 
   useEffect(() => {
     if (initial) {

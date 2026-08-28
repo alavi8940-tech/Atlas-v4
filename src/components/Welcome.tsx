@@ -21,7 +21,7 @@ export function Welcome(): React.JSX.Element {
   const isRunning = useAuiState(s => s.thread.isRunning)
   const [text, setText] = useState('')
   const [hint, setHint] = useState('')
-  const [attachments, setAttachments] = useState<{ name: string; content: string }[]>([])
+  const [attachments, setAttachments] = useState<{ name: string; content: string; mime?: string }[]>([])
   const [listening, setListening] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<unknown>(null)
@@ -32,7 +32,9 @@ export function Welcome(): React.JSX.Element {
     const v = value.trim()
     let body = ''
     if (attachments.length) {
-      body += attachments.map((a) => `[پیوست فایل: ${a.name}]\n${a.content}`).join('\n\n') + '\n\n'
+      body += attachments
+        .map((a) => `[پیوست فایل: ${a.name}${a.mime ? ` (${a.mime})` : ''}]\n${a.content}`)
+        .join('\n\n') + '\n\n'
     }
     if (v) body += v
     if (!body.trim()) return
@@ -45,8 +47,10 @@ export function Welcome(): React.JSX.Element {
     if (!files) return
     Array.from(files).forEach((f) => {
       const r = new FileReader()
-      r.onload = () => setAttachments((a) => [...a, { name: f.name, content: String(r.result ?? '') }])
-      r.readAsText(f)
+      // خواندن به‌صورت data URL (base64) تا فایلهای باینری مثل تصویر/PDF خراب نشوند
+      r.onload = () =>
+        setAttachments((a) => [...a, { name: f.name, mime: f.type || undefined, content: String(r.result ?? '') }])
+      r.readAsDataURL(f)
     })
   }
 

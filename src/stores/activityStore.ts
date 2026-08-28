@@ -3,6 +3,7 @@
  * از طریق IPC (atlas:activity) از پروسهٔ اصلی پر میشود و در پنل نمایش داده میگردد.
  */
 import { create } from "zustand";
+import type { AtlasActivity } from "@/types/atlas-api";
 
 export interface ActivityEntry {
   id: string;
@@ -24,23 +25,26 @@ interface ActivityState {
 
 let counter = 0;
 
+/** حداکثر تعداد اسکرین‌شاتی که همزمان در حافظه نگه داشته میشود (جلوگیری از مصرف RAM) */
+const MAX_SCREENSHOTS = 5;
+
 export const useActivityStore = create<ActivityState>((set) => ({
   entries: [],
   lastScreenshot: undefined,
   push: (e) =>
-    set((s) => ({ entries: [e, ...s.entries].slice(0, 200) })),
+    set((s) => {
+      // اسکرین‌شاتها سنگیناند (base64)؛ فقط چندتای آخر نگه داشته میشوند
+      const entries = [e, ...s.entries]
+        .slice(0, 200)
+        .map((en, i) => (i >= MAX_SCREENSHOTS && en.screenshot ? { ...en, screenshot: undefined } : en));
+      return { entries };
+    }),
   setLastScreenshot: (screenshot) => set({ lastScreenshot: screenshot }),
   clear: () => set({ entries: [] }),
 }));
 
 /** فرمت کردن یک رکورد فعالیت از پروسهٔ اصلی */
-export function formatBackendActivity(data: {
-  tool: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
-  ts: number;
-}): ActivityEntry {
+export function formatBackendActivity(data: AtlasActivity): ActivityEntry {
   return {
     id: `a${Date.now()}-${counter++}`,
     tool: data.tool,

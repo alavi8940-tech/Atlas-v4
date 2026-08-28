@@ -2,7 +2,7 @@
  * SkillsStorePanel — فروشگاه مهارتها (متصل به skills.sh)
  * جستوجوی زنده، تبهای داغ/ترند/همه، نصب ماندگار، فعالسازی در سطح مکالمه
  */
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   fetchCatalog, searchSkills, fetchSkillDetail,
   fetchSkillAudit, parseSkillMd
@@ -31,27 +31,31 @@ export function SkillsStorePanel({
   const [dataSource, setDataSource] = useState<'skills.sh' | 'fallback'>('skills.sh')
   const [detailId, setDetailId] = useState<string | null>(null)
 
-  // بارگذاری کاتالوگ
-  const loadCatalog = useCallback(async (v: Tab) => {
+  // بارگذاری کاتالوگ (با نشانهٔ درخواست برای جلوگیری از race condition)
+  const reqRef = useRef(0)
+  const loadCatalog = useCallback(async (v: Tab, token: number) => {
     setLoading(true)
     try {
       const r = await fetchCatalog(v === 'all' ? 'all-time' : v)
-      setSkills(r.skills); setDataSource(r.source)
+      if (reqRef.current === token) { setSkills(r.skills); setDataSource(r.source) }
     } finally {
-      setLoading(false)
+      if (reqRef.current === token) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     if (!open || detailId) return
     if (view === 'installed') return
+    const token = ++reqRef.current
     if (query.trim().length >= 2) {
       const t = setTimeout(() => {
-        void searchSkills(query).then(r => { setSkills(r.skills); setDataSource(r.source) })
+        void searchSkills(query).then(r => {
+          if (reqRef.current === token) { setSkills(r.skills); setDataSource(r.source) }
+        })
       }, 350)
       return () => clearTimeout(t)
     }
-    void loadCatalog(tab)
+    void loadCatalog(tab, token)
   }, [open, tab, query, view, detailId, loadCatalog])
 
   if (!open) return null

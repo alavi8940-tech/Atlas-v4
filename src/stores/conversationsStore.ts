@@ -31,7 +31,11 @@ interface ConvState {
 }
 
 function genId(): string {
-  return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+  const rand =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10)
+  return `c_${Date.now().toString(36)}_${rand}`
 }
 
 const NEW_TITLE = 'مکالمهٔ جدید'
@@ -99,36 +103,10 @@ export const useConversationsStore = create<ConvState>()(
 )
 
 /* ─── ذخیرهٔ پیامها (جدا از متا) ─── */
-
-export interface StoredThread {
-  /** فرمت ExportedMessageRepository از assistant-ui */
-  repository: unknown
-  savedAt: number
-}
-
-interface MessagesState {
-  threads: Record<string, StoredThread>
-  save: (id: string, repository: unknown) => void
-  load: (id: string) => StoredThread | undefined
-  drop: (id: string) => void
-}
-
-export const useMessagesStore = create<MessagesState>()(
-  persist(
-    (set, get) => ({
-      threads: {},
-      save: (id, repository) =>
-        set(s => ({ threads: { ...s.threads, [id]: { repository, savedAt: Date.now() } } })),
-      load: id => get().threads[id],
-      drop: id =>
-        set(s => {
-          const { [id]: _removed, ...rest } = s.threads
-          return { threads: rest }
-        })
-    }),
-    { name: 'atlas-threads', version: 1 }
-  )
-)
+// تعریف واقعی در src/stores/messagesStore.ts قرار دارد؛ اینجا فقط بازصادر میشود
+// تا واردات قبلی خرد نشوند.
+export { useMessagesStore } from './messagesStore'
+export type { StoredThread } from './messagesStore'
 
 /* ─── گروهبندی لیست (Pinned / Today / Previous 7 days / Older) ─── */
 

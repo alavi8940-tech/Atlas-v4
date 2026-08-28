@@ -1,32 +1,69 @@
-# React + TypeScript + Vite
+# Atlas v4 — دستیار هوشمند محلی
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Atlas** یک دسکتاپ‌اپلیکیشن الکترونی است که مدل‌های زبانی (LLM) را مستقیماً روی دستگاه یا از طریق API متصل می‌کند و به یک **عامل (Agent) واقعی** تبدیل می‌شود: می‌تواند ترمینال را اجرا کند، فایل بخواند، موس/کیبورد را کنترل کند، از صفحه عکس بگیرد و در حافظهٔ بلندمدت بسپارد.
 
-Currently, two official plugins are available:
+> رابط کاربری تماماً فارسی (RTL) با ۸ تم شیشه‌ای است. پرامپت پایهٔ Atlas (بخش «قفل») متعلق به سازنده `alavi8940-tech` است و دست‌نخورده می‌ماند.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ویژگی‌ها
 
-## React Compiler
+- **چند پروایدر مدل**: Ollama (محلی، خصوصی)، هر سرویس سازگار با OpenAI (LM Studio، LiteLLM، vLLM…)، و Anthropic رسمی. فهرست مدل‌ها از خود API فچ می‌شود.
+- **عامل سیستمی (Agent)**: با روشن کردن «حالت عامل» در تنظیمات، مدل به ۲۰ ابزار واقعی دسترسی پیدا می‌کند (حلقهٔ عامل با ۱۲ گام). ابزارها در پروسهٔ اصلی Electron اجرا می‌شوند:
+  - ترمینال `shell_exec`، فایل‌سیستم (`fs_read/list/write/mkdir/exists`)، فرآیندها (`proc_list/kill`)، کلیپبورد، موس و کیبورد (روی لینوکس با `xdotool`)، اسکرین‌شات واقعی (`desktopCapturer`)، و حافظهٔ بلندمدت.
+- **مرورگر داخلی**: نوار بالا دکمهٔ «مرورگر» — روی دسکتاپ با تگ `webview`، در نسخهٔ مرورگر با `iframe`.
+- **ترمینال داخلی**: دکمهٔ «ترمینال» — اجرای مستقیم دستورات روی سیستم (فقط نسخهٔ دسکتاپ).
+- **فروشگاه مهارتها**: نصب مهارت‌ها از skills.sh (با فالبک گیتهاب)، فعال/غیرفعال‌سازی در سطح مکالمه.
+- **مدیریت مکالمه**: ساخت/حذف/سنجاق/ستاره/تغییرنام، عنوان خودکار، گروه‌بندی.
+- **خروجی چندرسانه‌ای**: تصویر (lightbox)، صوت (Wavesurfer)، ویدئو (Vidstack)، استدلال و منابع.
+- **۸ تم شیشه‌ای** + گالری تم.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## معماری
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+Atlas-v4/
+├─ src/                 # فرانت‌اند (Vite + React + TypeScript)
+│  ├─ components/        # رابط کاربری (Welcome, Sidebar, Thread, TerminalPanel, InternalBrowser, …)
+│  ├─ lib/               # atlasRuntime (آداپتور AI SDK)، agentTools، corePrompt
+│  ├─ stores/            # zustand: settings، conversations، skills، activity، ui
+│  └─ types/atlas-api.d.ts  # تایپ سراسری window.atlasAPI
+├─ desktop/
+│  ├─ main.cjs           # پروسهٔ اصلی الکترون (sandbox:true، webview)
+│  ├─ preload.cjs        # پل ایزوله (contextBridge) → window.atlasAPI
+│  └─ backend.cjs        # اجرای ابزارهای عامل + IPC + تأیید دستورات خطرناک
+└─ .github/workflows/    # ساخت خودکار AppImage روی گیت‌هاب
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+ارتباط رندرر ↔ پروسهٔ اصلی از طریق IPC است: رندرر با `window.atlasAPI.invokeTool(...)` ابزار را صدا می‌زند و پروسهٔ اصلی آن را روی سیستم اجرا می‌کند، سپس نتیجه و لاگ فعالیت را بازمی‌گرداند.
+
+## توسعه و اجرا
+
+```bash
+npm install
+npm run dev        # نسخهٔ مرورگر (بدون قابلیت‌های سیستمی)
+npm run build      # بیلد وب (tsc -b && vite build)
+npm run app        # اجرای نسخهٔ دسکتاپ الکترون (نیاز به electron)
+npm run appimage   # بسته‌بندی AppImage (محلی)
+```
+
+ساخت خودکار AppImage روی گیت‌هاب: هر پوش به شاخهٔ `main` یا تگ `v*` ورک‌فلو `.github/workflows/build.yml` را اجرا می‌کند.
+
+## تست‌ها
+
+```bash
+npm run test        # اجرای تست‌های واحد (vitest)
+```
+
+تست‌های واحد برای منطق خالص (فرمت فعالیت، استور رابط کاربری، پرامپت پایه) در `src/__tests__/` قرار دارند.
+
+## امنیت — نکات مهم
+
+Atlas یک عامل با دسترسی واقعی به سیستم است؛ بنابراین با احتیاط استفاده شود:
+
+- **پیش‌فرض غیرفعال**: «حالت عامل» و مرورگر/ترمینالِ سیستمی فقط روی نسخهٔ دسکتاپ و پس از فعال‌سازی صریح کاربر در دسترسند.
+- **تأیید دستورات خطرناک**: اجرای `shell_exec` و `proc_kill` پیش از اجرا دیالوگ تأیید نشان می‌دهد (در تنظیمات قابل خاموش کردن با گزینهٔ «این جلسه بدون تأیید»).
+- **sandbox**: پریلود الکترون در محیط ایزوله (`sandbox: true`) اجرا می‌شود و فقط به زیرمجموعهٔ محدودی از API الکترون دسترسی دارد.
+- **کلیدهای API**: در نسخهٔ مرورگر، درخواست‌ها مستقیماً از کلاینت به ارائه‌دهنده ارسال می‌شوند (محدودیت CORS مرورگر). در نسخهٔ دسکتاپ، پروکسی `atlas:proxy` در پروسهٔ اصلی آماده است تا کلیدها از بافتار وب خارج شوند. برای انزوای کامل کلید، انتقال تنظیمات مدل به پروسهٔ اصلی (خارج از renderer) کار بعدی است.
+- **اسکرین‌شات**: فقط روی دسکتاپ و با اجازهٔ ابزار `screen_capture` گرفته می‌شود.
+
+## مجوز
+
+متعلق به سازنده `alavi8940-tech`. پرامپت پایهٔ قفل متعلق به سازنده است.
