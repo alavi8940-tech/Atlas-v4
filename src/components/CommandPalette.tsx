@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useMacrosStore } from '@/stores/macrosStore'
+import { useToastStore } from '@/stores/toastStore'
 import {
   Plus, Settings, Wrench, Puzzle, Bot, Radio, Palette, Sparkles,
   MessageSquarePlus, CornerDownLeft, Search
@@ -36,6 +37,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const aui = useAui()
   const s = useSettingsStore()
   const macros = useMacrosStore(st => st.macros)
+  const toast = useToastStore(st => st.push)
   const [q, setQ] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -73,7 +75,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const choose = (a?: Action): void => {
     if (!a) return
     onClose()
-    setTimeout(() => a.run(), 10)
+    setTimeout(() => { a.run(); toast(`اجرا شد: ${a.title}`, 'success') }, 10)
   }
 
   return (

@@ -22,6 +22,7 @@ import { usePlanStore } from '@/stores/planStore'
 import { useScheduleStore, isTaskDue } from '@/stores/scheduleStore'
 import { ToolsPanel } from '@/components/ToolsPanel'
 import { CommandPalette } from '@/components/CommandPalette'
+import { Toaster } from '@/components/Toaster'
 import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench, Search } from 'lucide-react'
 
 function App(): React.JSX.Element {
@@ -276,6 +277,7 @@ function App(): React.JSX.Element {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AgentActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <Toaster />
       <ToolsPanel open={toolsOpen} onClose={() => setToolsOpen(false)} />
     </AssistantRuntimeProvider>
   )

@@ -14,6 +14,7 @@ import { usePlanStore } from '@/stores/planStore'
 import { useMacrosStore, type MacroStep } from '@/stores/macrosStore'
 import { useScheduleStore } from '@/stores/scheduleStore'
 import { useActivityStore } from '@/stores/activityStore'
+import { useToastStore } from '@/stores/toastStore'
 import { useSettingsStore, getModelSettings } from '@/stores/settingsStore'
 import { useConversationsStore, useMessagesStore } from '@/stores/conversationsStore'
 import { proxyFetch } from '@/lib/modelCatalog'
@@ -81,6 +82,7 @@ function MacrosTab(): React.JSX.Element {
   const save = useMacrosStore(s => s.save)
   const remove = useMacrosStore(s => s.remove)
   const run = useMacrosStore(s => s.run)
+  const toast = useToastStore(s => s.push)
   const [name, setName] = useState('')
   const [stepsJson, setStepsJson] = useState('[\n  { "tool": "shell_exec", "args": { "command": "echo hi" } }\n]')
   const [busy, setBusy] = useState(false)
@@ -97,7 +99,9 @@ function MacrosTab(): React.JSX.Element {
 
   const doRun = async (id: string): Promise<void> => {
     setBusy(true)
-    try { await run(id) } finally { setBusy(false) }
+    try { await run(id); toast('ماکرو اجرا شد ✓', 'success') }
+    catch { toast('خطا در اجرای ماکرو', 'error') }
+    finally { setBusy(false) }
   }
 
   return (
@@ -172,6 +176,7 @@ function PlanTab(): React.JSX.Element {
   const reject = usePlanStore(s => s.reject)
   const planMode = useSettingsStore(s => s.planMode)
   const setPlanMode = useSettingsStore(s => s.setPlanMode)
+  const toast = useToastStore(s => s.push)
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between rounded-2xl p-3 glass">
@@ -186,8 +191,8 @@ function PlanTab(): React.JSX.Element {
           <div className="text-xs font-semibold">{p.tool}</div>
           <pre className="mt-1 max-h-28 overflow-auto rounded-lg p-2 text-[10px]" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-secondary)' }}>{JSON.stringify(p.args, null, 2)}</pre>
           <div className="mt-2 flex gap-2">
-            <Button onClick={() => void approve(p.id)} style={{ color: '#4ade80' }}>تأیید و اجرا</Button>
-            <Button onClick={() => reject(p.id)} style={{ color: '#f87171' }}>رد</Button>
+            <Button onClick={() => { void approve(p.id); toast('دستور تأیید و اجرا شد ✓', 'success') }} style={{ color: '#4ade80' }}>تأیید و اجرا</Button>
+            <Button onClick={() => { reject(p.id); toast('دستور رد شد', 'info') }} style={{ color: '#f87171' }}>رد</Button>
           </div>
         </div>
       ))}
@@ -430,6 +435,7 @@ function ReplayTab(): React.JSX.Element {
 
 /* ─── همگام‌سازی ابری (export/import) ─── */
 function SyncTab(): React.JSX.Element {
+  const toast = useToastStore(s => s.push)
   const exportAll = (): void => {
     const payload = {
       version: 1,
@@ -443,6 +449,7 @@ function SyncTab(): React.JSX.Element {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = 'atlas-backup.json'; a.click()
     URL.revokeObjectURL(url)
+    toast('پشتیبان خروجی گرفته شد ✓', 'success')
   }
   const importAll = (file: File): void => {
     const r = new FileReader()
@@ -454,8 +461,8 @@ function SyncTab(): React.JSX.Element {
         if (d.messages) useMessagesStore.setState(d.messages)
         if (d.macros) useMacrosStore.setState(d.macros)
         if (d.schedule) useScheduleStore.setState(d.schedule)
-        alert('بازیابی انجام شد ✓')
-      } catch { alert('فایل پشتیبان نامعتبر') }
+        toast('بازیابی انجام شد ✓', 'success')
+      } catch { toast('فایل پشتیبان نامعتبر', 'error') }
     }
     r.readAsText(file)
   }
