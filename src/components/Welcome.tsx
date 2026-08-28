@@ -9,6 +9,9 @@ import { ThemeGallery } from '@/components/ThemeGallery'
 import { useUiStore } from '@/stores/uiStore'
 import { motion } from 'motion/react'
 import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText, Boxes, Bot, ShieldCheck, Layers, Command, Wand2 } from 'lucide-react'
+import { Sparkles as SparklesFx } from '@/components/fx/Sparkles'
+import { Marquee } from '@/components/fx/Marquee'
+import { Typewriter } from '@/components/fx/Typewriter'
 
 const SUGGESTIONS = [
   { icon: '📊', text: 'وضعیت سیستمم رو تحلیل کن' },
@@ -121,13 +124,14 @@ export function Welcome(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-8">
-      {/* گوی با افکت فکر کردن */}
+      {/* گوی با افکت فکر کردن + ذرات درخشان */}
       <motion.div
-        className="rise-in"
+        className="rise-in relative"
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 18 }}
       >
+        <SparklesFx count={18} className="pointer-events-none absolute -inset-16" />
         <ThinkingOrb size={150} isThinking={isRunning} />
       </motion.div>
 
@@ -140,7 +144,14 @@ export function Welcome(): React.JSX.Element {
           {isRunning ? 'دارم فکر میکنم…' : 'چطور میتونم کمک کنم؟'}
         </h1>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {isRunning ? 'لحظهای صبر کن ✨' : 'به هر مدلی وصل میشم، سیستم تو رو میفهمم و کارها رو انجام میدم'}
+          {isRunning ? 'لحظهای صبر کن ✨' : (
+            <Typewriter words={[
+              'به هر مدلی وصل میشم و کارها رو انجام میدم',
+              'سیستمت رو کنترل می‌کنم: فایل، شل، موس، کیبورد',
+              'با مهارتها حرفه‌ای میشم و یاد میگیرم',
+              'روی دستگاه خودت اجرا میشم — امن و محلی',
+            ]} />
+          )}
         </p>
       </div>
 
@@ -244,6 +255,11 @@ export function Welcome(): React.JSX.Element {
         <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-settings'))} className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <Layers size={13} style={{ color: 'var(--accent)' }} /> تنظیمات و تم
         </button>
+      </div>
+
+      {/* مارکی تگهای قابلیت */}
+      <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <Marquee items={['چندمدل', 'عامل سیستم', 'مهارتها', 'پلن و تأیید', 'حریم خصوصی', 'RAG محلی', 'مقایسه مدل', 'جستجوی معنایی', 'بازپخش جلسه', 'همگام‌سازی', 'استودیو تصویر', 'دستیار ویک‌ورد']} />
       </div>
 
       {/* گالری تمها */}
