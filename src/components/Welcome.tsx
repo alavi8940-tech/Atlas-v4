@@ -8,10 +8,12 @@ import { ThinkingOrb } from '@/components/ThinkingOrb'
 import { ThemeGallery } from '@/components/ThemeGallery'
 import { useUiStore } from '@/stores/uiStore'
 import { motion } from 'motion/react'
+import Tilt from 'react-parallax-tilt'
 import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText, Boxes, Bot, ShieldCheck, Layers, Command, Wand2 } from 'lucide-react'
 import { Sparkles as SparklesFx } from '@/components/fx/Sparkles'
 import { Marquee } from '@/components/fx/Marquee'
 import { Typewriter } from '@/components/fx/Typewriter'
+import { celebrate } from '@/lib/celebrate'
 
 const SUGGESTIONS = [
   { icon: '📊', text: 'وضعیت سیستمم رو تحلیل کن' },
@@ -50,7 +52,9 @@ export function Welcome(): React.JSX.Element {
     }
     if (v) body += v
     if (!body.trim()) return
+    const firstEver = aui.thread.getState().messages.length === 0
     aui.thread.append(body)
+    if (firstEver) celebrate()
     setText('')
     setAttachments([])
   }
@@ -191,7 +195,7 @@ export function Welcome(): React.JSX.Element {
             <button onClick={() => openTerminal()} className="rounded-xl p-2 transition-all hover:scale-110" style={{ color: 'var(--text-secondary)' }} title="اجرای کد / ترمینال"><Code2 size={16} /></button>
             <button onClick={toggleAlways} className={`rounded-xl p-2 transition-all hover:scale-110 ${listenAlways ? 'animate-pulse' : ''}`} style={{ color: listenAlways ? 'var(--accent)' : 'var(--text-secondary)' }} title="دستیار صوتی همیشه‌روشن (بگو: اطلس ...)">🎧</button>
             {text.trim() ? (
-              <button onClick={() => send(text)} className="mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-110" style={{ background: 'var(--accent)' }} title="ارسال (Enter)"><SendHorizontalIcon size={16} /></button>
+              <button onClick={() => send(text)} className="shiny-button mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-110" style={{ background: 'var(--accent)' }} title="ارسال (Enter)"><SendHorizontalIcon size={16} /></button>
             ) : (
               <button onClick={startVoice} className={`mr-auto flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:scale-105 ${listening ? 'animate-pulse' : ''}`} style={{ background: listening ? '#ef4444' : 'var(--accent)' }} title="ورودی صوتی"><Mic size={16} /></button>
             )}
@@ -221,26 +225,34 @@ export function Welcome(): React.JSX.Element {
       {/* کارتهای قابلیتها */}
       <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
         {CAPABILITIES.map((c, i) => (
-          <motion.button
+          <Tilt
             key={c.title}
-            onClick={() => {
-              if (c.title === 'مهارتها') window.dispatchEvent(new CustomEvent('atlas:open-skills'))
-              else if (c.title === 'عامل سیستم') window.dispatchEvent(new CustomEvent('atlas:open-tools'))
-              else if (c.title === 'حریم خصوصی') window.dispatchEvent(new CustomEvent('atlas:open-settings'))
-              else send('مدلهای موجود رو نشون بده و بهترین رو پیشنهاد بده')
-            }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 + i * 0.06 }}
-            whileHover={{ y: -4, scale: 1.03 }}
-            className="glass glass-hover group flex flex-col items-start gap-1.5 rounded-2xl p-3 text-right"
+            tiltMaxAngleX={10} tiltMaxAngleY={10}
+            glareEnable glareMaxOpacity={0.16} glareColor="#ffffff" glarePosition="all"
+            transitionSpeed={500}
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-              <c.icon size={17} />
-            </span>
-            <span className="text-sm font-semibold">{c.title}</span>
-            <span className="text-[10px] leading-tight" style={{ color: 'var(--text-secondary)' }}>{c.desc}</span>
-          </motion.button>
+            <div
+              onClick={() => {
+                if (c.title === 'مهارتها') window.dispatchEvent(new CustomEvent('atlas:open-skills'))
+                else if (c.title === 'عامل سیستم') window.dispatchEvent(new CustomEvent('atlas:open-tools'))
+                else if (c.title === 'حریم خصوصی') window.dispatchEvent(new CustomEvent('atlas:open-settings'))
+                else send('مدلهای موجود رو نشون بده و بهترین رو پیشنهاد بده')
+              }}
+              className="glass glass-hover group flex cursor-pointer flex-col items-start gap-1.5 rounded-2xl p-3 text-right transition-transform"
+            >
+              <motion.span
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.06 }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
+                <c.icon size={17} />
+              </motion.span>
+              <span className="text-sm font-semibold">{c.title}</span>
+              <span className="text-[10px] leading-tight" style={{ color: 'var(--text-secondary)' }}>{c.desc}</span>
+            </div>
+          </Tilt>
         ))}
       </div>
 

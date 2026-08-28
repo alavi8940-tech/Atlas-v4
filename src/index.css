@@ -359,6 +359,18 @@ div[data-slot='atlas-audio-player'] canvas {
   opacity: 0.45;
 }
 
+/* ─── ShinyButton (الگوی آماده: سایهٔ براق لغزنده) ─── */
+.shiny-button { position: relative; overflow: hidden; }
+.shiny-button::after {
+  content: '';
+  position: absolute; top: 0; left: -160%; width: 55%; height: 100%;
+  background: linear-gradient(110deg, transparent, rgba(255,255,255,.4), transparent);
+  transform: skewX(-18deg);
+  animation: shiny-sweep 3.4s ease-in-out infinite;
+}
+@keyframes shiny-sweep { to { left: 160%; } }
+
+
 /* ─── نقطههای تایپ ─── */
 @keyframes glow-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 .typing-dot {
