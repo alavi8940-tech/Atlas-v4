@@ -195,6 +195,7 @@ function App(): React.JSX.Element {
       <div className="flex h-full gap-0" dir="rtl" style={{ background: 'var(--bg-base)' }}>
         <div className="atlas-aurora-bg" aria-hidden />
         <div className="atlas-grain" aria-hidden />
+        <div className="bg-grid-dots pointer-events-none fixed inset-0" aria-hidden />
 
         {sidebarOpen ? (
           <Sidebar onClose={() => setSidebarOpen(false)} />

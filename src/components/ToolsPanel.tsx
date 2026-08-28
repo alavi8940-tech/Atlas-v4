@@ -15,6 +15,7 @@ import { useMacrosStore, type MacroStep } from '@/stores/macrosStore'
 import { useScheduleStore } from '@/stores/scheduleStore'
 import { useActivityStore } from '@/stores/activityStore'
 import { useToastStore } from '@/stores/toastStore'
+import { AnimatedNumber } from '@/components/fx/AnimatedNumber'
 import { useSettingsStore, getModelSettings } from '@/stores/settingsStore'
 import { useConversationsStore, useMessagesStore } from '@/stores/conversationsStore'
 import { proxyFetch } from '@/lib/modelCatalog'
@@ -225,7 +226,7 @@ function SystemTab(): React.JSX.Element {
       <div className="rounded-2xl p-3 glass">
         <div className="mb-1 flex justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}><span>مصرف حافظه</span><span>{usedPct}%</span></div>
         <div className="h-2 overflow-hidden rounded-full" style={{ background: 'rgba(128,128,128,.15)' }}>
-          <div className="h-full rounded-full" style={{ width: `${usedPct}%`, background: 'linear-gradient(90deg,var(--accent),var(--accent2))' }} />
+          <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${usedPct}%`, background: 'linear-gradient(90deg,var(--accent),var(--accent2))' }} />
         </div>
       </div>
       <Button onClick={refresh}><RefreshCw size={12} /> بروزرسانی</Button>
@@ -234,10 +235,11 @@ function SystemTab(): React.JSX.Element {
 }
 
 function Stat({ label, value }: { label: string; value: string }): React.JSX.Element {
+  const isNum = /^[0-9.]+$/.test(value)
   return (
-    <div className="rounded-2xl p-3 glass">
+    <div className="animate-in fade-in zoom-in-95 rounded-2xl p-3 glass duration-500">
       <div className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-      <div className="mt-0.5 truncate text-sm font-semibold">{value}</div>
+      <div className="mt-0.5 truncate text-sm font-semibold">{isNum ? <AnimatedNumber value={Number(value)} /> : value}</div>
     </div>
   )
 }

@@ -350,6 +350,15 @@ div[data-slot='atlas-audio-player'] canvas {
 @keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .caret { animation: caret-blink 1s step-end infinite; margin-inline-start: 1px; }
 
+/* ─── شبکه نقطه‌ای ظریف (الگوی آماده پس‌زمینه) ─── */
+.bg-grid-dots {
+  background-image: radial-gradient(color-mix(in srgb, var(--text-secondary) 18%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000, transparent 78%);
+  mask-image: radial-gradient(ellipse at 50% 0%, #000, transparent 78%);
+  opacity: 0.45;
+}
+
 /* ─── نقطههای تایپ ─── */
 @keyframes glow-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 .typing-dot {
