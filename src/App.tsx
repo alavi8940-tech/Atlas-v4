@@ -23,7 +23,8 @@ import { useScheduleStore, isTaskDue } from '@/stores/scheduleStore'
 import { ToolsPanel } from '@/components/ToolsPanel'
 import { CommandPalette } from '@/components/CommandPalette'
 import { Toaster } from '@/components/Toaster'
-import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench, Search } from 'lucide-react'
+import { VoiceChatPanel } from '@/components/VoiceChatPanel'
+import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench, Search, Mic } from 'lucide-react'
 
 function App(): React.JSX.Element {
   const engine = useEngineInfo()
@@ -33,6 +34,7 @@ function App(): React.JSX.Element {
   const [hasStarted, setHasStarted] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const agentEnabled = useSettingsStore(s => s.agentEnabled)
   const planMode = useSettingsStore(s => s.planMode)
   const panel = useUiStore((s) => s.panel)
@@ -71,16 +73,19 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const openSettings = (): void => setSettingsOpen(true)
     const openTools = (): void => setToolsOpen(true)
+    const openVoice = (): void => setVoiceOpen(true)
     const newChat = (): void => { try { createConv() } catch { /* ignore */ } }
     window.addEventListener('atlas:open-settings', openSettings)
     window.addEventListener('atlas:open-tools', openTools)
+    window.addEventListener('atlas:open-voice', openVoice)
     window.addEventListener('atlas:new-chat', newChat)
     return () => {
       window.removeEventListener('atlas:open-settings', openSettings)
       window.removeEventListener('atlas:open-tools', openTools)
+      window.removeEventListener('atlas:open-voice', openVoice)
       window.removeEventListener('atlas:new-chat', newChat)
     }
-  }, [createConv, setToolsOpen, setSettingsOpen])
+  }, [createConv, setToolsOpen, setSettingsOpen, setVoiceOpen])
 
   /* ─── شروع/توقف مکالمه برای نمایش Welcome یا Thread ─── */
   useEffect(() => {
@@ -252,15 +257,23 @@ function App(): React.JSX.Element {
                <Search size={12} /> <kbd className="rounded bg-white/10 px-1">⌘K</kbd>
              </button>
             {agentEnabled && (
-              <button
-                onClick={() => setActivityOpen(o => !o)}
-                className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
-                style={{ color: 'var(--accent)' }}
-                title="فعالیت عامل"
-              >
-                <Bot size={13} /> عامل
-              </button>
-            )}
+            <button
+              onClick={() => setActivityOpen(o => !o)}
+              className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+              style={{ color: 'var(--accent)' }}
+              title="فعالیت عامل"
+            >
+              <Bot size={13} /> عامل
+            </button>
+          )}
+          <button
+            onClick={() => setVoiceOpen(true)}
+            className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+            style={{ color: voiceOpen ? 'var(--accent)' : 'var(--text-secondary)' }}
+            title="چت صوتی"
+          >
+            <Mic size={13} /> صوتی
+          </button>
             <button
               onClick={() => setToolsOpen(o => !o)}
               className="btn-gradient flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
@@ -296,6 +309,7 @@ function App(): React.JSX.Element {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <Toaster />
       <ToolsPanel open={toolsOpen} onClose={() => setToolsOpen(false)} />
+      <VoiceChatPanel open={voiceOpen} onClose={() => setVoiceOpen(false)} />
     </AssistantRuntimeProvider>
   )
 }

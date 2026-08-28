@@ -396,6 +396,12 @@ div[data-slot='atlas-audio-player'] canvas {
 }
 .btn-gradient:hover { filter: brightness(1.08); }
 
+/* ─── VoiceOrb (الگوی آماده: اورب صوتی متحرک) ─── */
+@keyframes voice-pulse {
+  0%   { transform: scale(0.85); opacity: 0.5; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
 
 /* ─── نقطههای تایپ ─── */
 @keyframes glow-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }

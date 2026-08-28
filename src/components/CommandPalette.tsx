@@ -13,7 +13,7 @@ import { useMacrosStore } from '@/stores/macrosStore'
 import { useToastStore } from '@/stores/toastStore'
 import {
   Plus, Settings, Wrench, Puzzle, Bot, Radio, Palette, Sparkles,
-  MessageSquarePlus, CornerDownLeft, Search
+  MessageSquarePlus, CornerDownLeft, Search, Mic
 } from 'lucide-react'
 
 interface Action {
@@ -45,6 +45,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const actions = useMemo<Action[]>(() => {
     const list: Action[] = [
       { id: 'new', title: 'مکالمهٔ جدید', icon: <Plus size={16} />, keywords: 'new chat مکالمه جدید', run: () => window.dispatchEvent(new CustomEvent('atlas:new-chat')) },
+      { id: 'voice', title: 'چت صوتی', icon: <Mic size={16} />, keywords: 'voice صوتی میکروفون', run: () => window.dispatchEvent(new CustomEvent('atlas:open-voice')) },
       { id: 'settings', title: 'تنظیمات', icon: <Settings size={16} />, keywords: 'settings تنظیمات', run: () => window.dispatchEvent(new CustomEvent('atlas:open-settings')) },
       { id: 'tools', title: 'ابزارهای پیشرفته', icon: <Wrench size={16} />, keywords: 'tools ابزارها', run: () => window.dispatchEvent(new CustomEvent('atlas:open-tools')) },
       { id: 'skills', title: 'فروشگاه مهارتها', icon: <Puzzle size={16} />, keywords: 'skills مهارت', run: () => window.dispatchEvent(new CustomEvent('atlas:open-skills')) },
