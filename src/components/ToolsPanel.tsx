@@ -60,7 +60,7 @@ export function ToolsPanel({ open, onClose }: { open: boolean; onClose: () => vo
           ))}
         </nav>
 
-        <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pl-1">
+        <div className="-mr-1 min-h-0 flex-1 animate-in fade-in slide-in-from-bottom-2 duration-500 overflow-y-auto pl-1">
           {tab === 'macros' && <MacrosTab />}
           {tab === 'schedule' && <ScheduleTab />}
           {tab === 'plan' && <PlanTab />}

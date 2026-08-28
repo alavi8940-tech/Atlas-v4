@@ -101,8 +101,8 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
         <kbd className="mr-auto rounded-md px-1.5 py-0.5 text-[9px] glass" style={{ color: 'var(--text-secondary)' }}>Ctrl K</kbd>
       </button>
 
-      {/* لیست گروهی */}
-      <nav className="-mr-1 min-h-0 flex-1 overflow-y-auto pl-1">
+       {/* لیست گروهی */}
+       <nav className="-mr-1 min-h-0 flex-1 animate-in fade-in overflow-y-auto pl-1">
         {groups.length === 0 && (
           <p className="mt-6 text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             {conversations.length === 0 ? 'اولین مکالمهات رو بساز ✨' : 'چیزی پیدا نشد'}

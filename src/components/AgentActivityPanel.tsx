@@ -140,7 +140,7 @@ export function AgentActivityPanel({ open, onClose }: { open: boolean; onClose: 
               return (
                 <div
                   key={e.id}
-                  className="rounded-xl border p-2.5"
+                  className="animate-in fade-in slide-in-from-left-2 rounded-xl border p-2.5 duration-300"
                   style={{ borderColor: "var(--glass-border)", background: "var(--glass-card)" }}
                 >
                   <div className="flex items-center gap-2">

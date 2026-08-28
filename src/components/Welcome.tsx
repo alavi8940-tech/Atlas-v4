@@ -234,7 +234,7 @@ export function Welcome(): React.JSX.Element {
       </div>
 
       {/* ردیف دسترسی سریع */}
-      <div className="flex w-full max-w-2xl flex-wrap items-center justify-center gap-2">
+      <div className="flex w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 flex-wrap items-center justify-center gap-2 duration-700">
         <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-tools'))} className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <Wand2 size={13} style={{ color: 'var(--accent)' }} /> قابلیت‌های پیشرفته
         </button>
