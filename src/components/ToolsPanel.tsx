@@ -21,6 +21,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSettingsStore, getModelSettings } from '@/stores/settingsStore'
 import { useConversationsStore, useMessagesStore } from '@/stores/conversationsStore'
 import { proxyFetch } from '@/lib/modelCatalog'
+import { ragAddDocument, ragList, ragRemove, ragClear, ragQuery, formatRagContext } from '@/lib/rag'
+import { semanticQuery, indexConversation } from '@/lib/semanticIndex'
+import { syncPush, syncPull, collectSnapshot, applySnapshot } from '@/lib/sync'
 
 type Tab = 'macros' | 'schedule' | 'plan' | 'system' | 'rag' | 'ensemble' | 'semantic' | 'replay' | 'sync'
 
@@ -271,38 +274,106 @@ function Stat({ label, value }: { label: string; value: string }): React.JSX.Ele
 /* ─── RAG محلی ─── */
 function RagTab(): React.JSX.Element {
   const aui = useAui()
+  const toast = useToastStore(s => s.push)
+  const [name, setName] = useState('')
   const [docs, setDocs] = useState('')
+  const [list, setList] = useState(() => ragList())
   const [q, setQ] = useState('')
+  const [hits, setHits] = useState<Array<{ doc: string; chunk: string; score: number }>>([])
+  const [busy, setBusy] = useState(false)
+
   const onFiles = (files: FileList | null): void => {
     if (!files) return
-    let txt = ''
     Array.from(files).forEach(f => {
       const r = new FileReader()
-      r.onload = () => { txt += `\n\n=== ${f.name} ===\n${String(r.result ?? '')}`; setDocs(d => d + txt) }
+      r.onload = () => setDocs(d => `${d}\n\n=== ${f.name} ===\n${String(r.result ?? '')}`)
       r.readAsText(f)
     })
   }
-  const ask = (): void => {
-    if (!q.trim()) return
-    const body = `[مدارک محلی]\n${docs.slice(0, 20000)}\n\nسوال بر اساس مدارک بالا: ${q}`
-    aui.thread.append(body)
-    setQ('')
+
+  const addDoc = async (): Promise<void> => {
+    const text = docs.trim()
+    if (!text) return
+    setBusy(true)
+    try {
+      await ragAddDocument(name.trim() || `سند ${list.length + 1}`, text)
+      setList(ragList())
+      setDocs('')
+      setName('')
+      toast('سند ایمبد و ذخیره شد ✓', 'success')
+    } catch (e) {
+      toast(`خطا: ${e instanceof Error ? e.message : String(e)}`, 'error')
+    } finally {
+      setBusy(false)
+    }
   }
+
+  const ask = async (): Promise<void> => {
+    if (!q.trim()) return
+    setBusy(true)
+    try {
+      const res = await ragQuery(q, 4)
+      setHits(res)
+      if (res.length === 0) toast('مدرکی یافت نشد — ابتدا سند اضافه کن', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendToChat = (): void => {
+    const ctx = formatRagContext(hits)
+    if (!ctx) return
+    aui.thread.append(`${ctx}\n\nسوال: ${q}`)
+    setQ('')
+    setHits([])
+  }
+
   return (
     <div className="grid gap-3">
       <div className="rounded-2xl p-3 glass">
-        <p className="mb-2 text-xs font-medium">مدارک محلی (RAG سبک)</p>
-        <textarea value={docs} onChange={e => setDocs(e.target.value)} rows={6} placeholder="متن اسناد را اینجا بچسبان یا فایل اضافه کن…" className="w-full resize-none rounded-xl bg-transparent px-3 py-2 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
+        <p className="mb-2 text-xs font-medium">افزودن سند به ایندکس RAG</p>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="نام سند (اختیاری)" className="mb-2 w-full rounded-lg px-2 py-1 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
+        <textarea value={docs} onChange={e => setDocs(e.target.value)} rows={5} placeholder="متن اسناد را بچسبان یا فایل اضافه کن…" className="w-full resize-none rounded-xl bg-transparent px-3 py-2 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
         <div className="mt-2 flex items-center gap-2">
           <input type="file" multiple hidden id="rag-files" onChange={e => onFiles(e.target.files)} />
           <Button asLabel htmlFor="rag-files">افزودن فایل</Button>
+          <Button disabled={busy} onClick={() => void addDoc()}>ذخیره سند</Button>
         </div>
       </div>
+
+      {list.length > 0 && (
+        <div className="rounded-2xl p-3 glass">
+          <div className="mb-1 flex items-center justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <span>اسناد ایندکس‌شده ({list.length})</span>
+            <button className="underline" onClick={() => { ragClear(); setList([]) }}>پاکسازی</button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {list.map(d => (
+              <span key={d.id} className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px]" style={{ background: 'var(--accent-soft)' }}>
+                {d.name}
+                <button onClick={() => { ragRemove(d.id); setList(ragList()) }}>✕</button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="سوال از مدارک…" className="flex-1 rounded-xl bg-transparent px-3 py-2 text-xs outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
-        <Button onClick={ask}>پرسش</Button>
+        <Button disabled={busy} onClick={() => void ask()}>جستجو</Button>
       </div>
-      <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>مدارک به‌همراه سوال به چت ارسال میشوند تا مدل پاسخ دهد. نسخهٔ کامل با ایمبدینگ محلی ارتقا مییابد.</p>
+
+      {hits.map((h, i) => (
+        <div key={i} className="rounded-2xl p-3 glass">
+          <div className="mb-1 flex items-center justify-between text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+            <span>{h.doc}</span><span>نمره {h.score.toFixed(2)}</span>
+          </div>
+          <pre className="max-h-28 overflow-auto text-[10px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>{h.chunk}</pre>
+        </div>
+      ))}
+
+      {hits.length > 0 && <Button onClick={sendToChat}>ارسال منابع به چت</Button>}
+      <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>هر سند به تکه‌های کوچک تقسیم، ایمبد و در دستگاه ذخیره میشود. با Ollama + nomic-embed-text دقت واقعی؛ در غیر این صورت بردار محلی آفلاین.</p>
     </div>
   )
 }
@@ -364,21 +435,6 @@ function EnsembleTab(): React.JSX.Element {
 }
 
 /* ─── جستجوی معنایی (MVP) ─── */
-function embed(text: string): Promise<number[] | null> {
-  const s = getModelSettings()
-  if (s.provider !== 'ollama') return Promise.resolve(null)
-  const base = s.ollamaBaseURL.replace(/\/v1$/, '')
-  return proxyFetch(`${base}/api/embed`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: s.ollamaModel || 'nomic-embed-text', prompt: text }),
-  }).then(r => r.json().then((j: { embedding?: number[] }) => j.embedding ?? null)).catch(() => null)
-}
-function cosine(a: number[], b: number[]): number {
-  let dot = 0, na = 0, nb = 0
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
-  return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1)
-}
 function SemanticTab(): React.JSX.Element {
   const [q, setQ] = useState('')
   const [ranked, setRanked] = useState<Array<{ id: string; title: string; score: number }>>([])
@@ -386,28 +442,22 @@ function SemanticTab(): React.JSX.Element {
   const run = async (): Promise<void> => {
     if (!q.trim()) return
     setBusy(true)
-    const convs = useConversationsStore.getState().conversations
-    const texts = convs.map(c => {
-      const t = useMessagesStore.getState().threads[c.id]
-      return `${c.title}\n${JSON.stringify(t?.repository ?? '').slice(0, 2000)}`
-    })
-    const qe = await embed(q)
-    if (qe) {
-      const emb = await Promise.all(texts.map(t => embed(t)))
-      const res = convs.map((c, i) => ({ id: c.id, title: c.title, score: emb[i] ? cosine(qe, emb[i]!) : 0 }))
-        .sort((x, y) => y.score - x.score).slice(0, 8)
-      setRanked(res)
-    } else {
-      // فال‌بک: رتبه‌بندی بر اساس همپوشانی کلمات
-      const qw = q.toLowerCase().split(/\s+/)
-      const res = convs.map(c => {
-        const text = `${c.title} ${JSON.stringify(useMessagesStore.getState().threads[c.id]?.repository ?? '')}`.toLowerCase()
-        const score = qw.reduce((n, w) => n + (text.includes(w) ? 1 : 0), 0)
-        return { id: c.id, title: c.title, score }
-      }).sort((x, y) => y.score - x.score).slice(0, 8)
-      setRanked(res)
+    try {
+      const convs = useConversationsStore.getState().conversations
+      // ایندکس‌سازیِ کامل (فقط در صورت تغییر متن دوباره ایمبد میشود)
+      await Promise.all(
+        convs.map(c => {
+          const t = useMessagesStore.getState().threads[c.id]
+          const text = `${c.title}\n${(t?.repository ? JSON.stringify(t.repository) : '')}`.slice(0, 6000)
+          return indexConversation(c.id, text)
+        })
+      )
+      const res = await semanticQuery(q, 8)
+      const byId = new Map(convs.map(c => [c.id, c.title]))
+      setRanked(res.map(r => ({ id: r.id, title: byId.get(r.id) ?? r.id, score: r.score })))
+    } finally {
+      setBusy(false)
     }
-    setBusy(false)
   }
   return (
     <div className="grid gap-3">
@@ -421,7 +471,7 @@ function SemanticTab(): React.JSX.Element {
           <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>نمره {r.score.toFixed(2)}</span>
         </div>
       ))}
-      {ranked.length === 0 && <p className="text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>با Ollama و مدل embed (مثل nomic-embed-text) رتبه‌بندی واقعی؛ در غیر این صورت فال‌بک کلماتی.</p>}
+      {ranked.length === 0 && !busy && <p className="text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>ایندکس معنایی از مکالمه‌ها ساخته میشود (با Ollama دقیق، وگرنه بردار محلی آفلاین).</p>}
     </div>
   )
 }
@@ -462,16 +512,13 @@ function ReplayTab(): React.JSX.Element {
 /* ─── همگام‌سازی ابری (export/import) ─── */
 function SyncTab(): React.JSX.Element {
   const toast = useToastStore(s => s.push)
+  const s = useSettingsStore()
+  const [status, setStatus] = useState<string>('')
+  const [busy, setBusy] = useState(false)
+
   const exportAll = (): void => {
-    const payload = {
-      version: 1,
-      settings: useSettingsStore.getState(),
-      conversations: useConversationsStore.getState(),
-      messages: useMessagesStore.getState(),
-      macros: useMacrosStore.getState(),
-      schedule: useScheduleStore.getState(),
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const snap = collectSnapshot()
+    const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = 'atlas-backup.json'; a.click()
     URL.revokeObjectURL(url)
@@ -481,25 +528,61 @@ function SyncTab(): React.JSX.Element {
     const r = new FileReader()
     r.onload = () => {
       try {
-        const d = JSON.parse(String(r.result ?? ''))
-        if (d.settings) useSettingsStore.setState(d.settings)
-        if (d.conversations) useConversationsStore.setState(d.conversations)
-        if (d.messages) useMessagesStore.setState(d.messages)
-        if (d.macros) useMacrosStore.setState(d.macros)
-        if (d.schedule) useScheduleStore.setState(d.schedule)
-        toast('بازیابی انجام شد ✓', 'success')
+        const snap = JSON.parse(String(r.result ?? '')) as Parameters<typeof applySnapshot>[0]
+        const res = applySnapshot(snap)
+        if (res.ok) { toast(res.message, 'success'); setStatus(res.message) }
+        else toast(res.message, 'error')
       } catch { toast('فایل پشتیبان نامعتبر', 'error') }
     }
     r.readAsText(file)
   }
+  const pushRemote = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const res = await syncPush({ endpoint: s.syncEndpoint, token: s.syncToken })
+      setStatus(res.message)
+      toast(res.message, res.ok ? 'success' : 'error')
+    } finally { setBusy(false) }
+  }
+  const pullRemote = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const res = await syncPull({ endpoint: s.syncEndpoint, token: s.syncToken })
+      setStatus(res.message)
+      toast(res.message, res.ok ? 'success' : 'error')
+    } finally { setBusy(false) }
+  }
+
   return (
     <div className="grid gap-3">
-      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>پشتیبان‌گیری رمزنگذاری‌شدهٔ محلی (export/import). همگام‌سازی ابری واقعی در نسخهٔ بعدی.</p>
-      <Button onClick={exportAll}><Download size={12} /> خروجی گرفتن (backup)</Button>
-      <div>
-        <input type="file" accept="application/json" hidden id="sync-in" onChange={e => { const f = e.target.files?.[0]; if (f) importAll(f) }} />
-        <Button asLabel htmlFor="sync-in"><Upload size={12} /> وارد کردن (restore)</Button>
+      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        همگام‌سازی Atlas: پشتیبان محلی (export/import) یا Push/Pull به یک نقطهٔ پایانی REST (سرور شخصی / WebDAV / صندوقچه). ادغام آخرین نوشته.
+      </p>
+
+      <div className="rounded-2xl p-3 glass">
+        <p className="mb-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>تنظیمات ریموت</p>
+        <select value={s.syncMode} onChange={e => s.setSyncMode(e.target.value as 'off' | 'local' | 'remote')} className="mb-2 w-full rounded-lg px-2 py-1 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }}>
+          <option value="off">خاموش</option>
+          <option value="local">محلی (export/import)</option>
+          <option value="remote">ریموت (REST)</option>
+        </select>
+        <input value={s.syncEndpoint} onChange={e => s.setSyncEndpoint(e.target.value)} placeholder="https://sync.example.com/atlas.json" className="mb-2 w-full rounded-lg px-2 py-1 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
+        <input value={s.syncToken} onChange={e => s.setSyncToken(e.target.value)} placeholder="توکن (اختیاری)" type="password" className="w-full rounded-lg px-2 py-1 text-[11px] outline-none" style={{ background: 'rgba(128,128,128,.08)', color: 'var(--text-primary)' }} />
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={exportAll}><Download size={12} /> خروجی (backup)</Button>
+        <input type="file" accept="application/json" hidden id="sync-in" onChange={e => { const f = e.target.files?.[0]; if (f) importAll(f) }} />
+        <Button asLabel htmlFor="sync-in"><Upload size={12} /> وارد کردن</Button>
+      </div>
+
+      {s.syncMode === 'remote' && (
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={busy} onClick={() => void pushRemote()}><Cloud size={12} /> Push (بارگذاری)</Button>
+          <Button disabled={busy} onClick={() => void pullRemote()}><RefreshCw size={12} /> Pull (دریافت)</Button>
+        </div>
+      )}
+      {status && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{status}</p>}
     </div>
   )
 }

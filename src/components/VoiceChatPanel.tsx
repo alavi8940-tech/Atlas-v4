@@ -7,7 +7,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useAui } from '@assistant-ui/react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { VoiceOrb } from '@/components/VoiceOrb'
-import { Mic, Square, X } from 'lucide-react'
+import { WakeWordDetector } from '@/lib/wakeWord'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { Mic, Square, X, Radio } from 'lucide-react'
 
 type VState = 'idle' | 'listening' | 'speaking'
 
@@ -23,6 +25,9 @@ export function VoiceChatPanel({ open, onClose }: { open: boolean; onClose: () =
   const rafRef = useRef<number | null>(null)
   const recRef = useRef<{ stop?: () => void; onresult?: (e: unknown) => void; onend?: () => void; start?: () => void } | null>(null)
   const simRef = useRef<number | null>(null)
+  const wakeRef = useRef<WakeWordDetector | null>(null)
+  const [wakeOn, setWakeOn] = useState(false)
+  const wakePhrase = useSettingsStore(s => s.wakePhrase)
 
   const cleanup = (): void => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -98,8 +103,31 @@ export function VoiceChatPanel({ open, onClose }: { open: boolean; onClose: () =
     }
   }
 
-  useEffect(() => { if (!open) { cleanup(); setState('idle'); setLevel(0) } }, [open])
-  useEffect(() => () => cleanup(), [])
+  const toggleWake = (): void => {
+    if (wakeOn) {
+      wakeRef.current?.stop()
+      wakeRef.current = null
+      setWakeOn(false)
+      return
+    }
+    const det = new WakeWordDetector({
+      phrase: wakePhrase,
+      lang: 'fa-IR',
+      onWake: () => {
+        setHint('کلمهٔ بیدار شنیده شد — حالا بگو…')
+        setWakeOn(false)
+        wakeRef.current?.stop()
+        wakeRef.current = null
+        void start()
+      },
+    })
+    void det.start()
+    wakeRef.current = det
+    setWakeOn(true)
+  }
+
+  useEffect(() => { if (!open) { cleanup(); wakeRef.current?.stop(); wakeRef.current = null; setWakeOn(false); setState('idle'); setLevel(0) } }, [open])
+  useEffect(() => () => { cleanup(); wakeRef.current?.stop() }, [])
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -121,13 +149,23 @@ export function VoiceChatPanel({ open, onClose }: { open: boolean; onClose: () =
           </div>
           {hint && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>💡 {hint}</p>}
 
-          <button
-            onClick={() => (state === 'idle' ? void start() : stop())}
-            className="btn-gradient mt-1 flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:scale-110"
-            title={state === 'idle' ? 'شروع' : 'توقف و ارسال'}
-          >
-            {state === 'idle' ? <Mic size={20} /> : <Square size={18} />}
-          </button>
+           <div className="mt-1 flex items-center gap-2">
+            <button
+              onClick={() => (state === 'idle' ? void start() : stop())}
+              className="btn-gradient flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:scale-110"
+              title={state === 'idle' ? 'شروع' : 'توقف و ارسال'}
+            >
+              {state === 'idle' ? <Mic size={20} /> : <Square size={18} />}
+            </button>
+            <button
+              onClick={toggleWake}
+              className="flex h-10 items-center gap-1.5 rounded-full px-3 text-[11px] transition-colors"
+              style={wakeOn ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--glass-bg)', color: 'var(--text-secondary)' }}
+              title={`کلمهٔ بیدار: ${wakePhrase}`}
+            >
+              <Radio size={14} /> {wakeOn ? 'شنود کلمهٔ بیدار روشن' : 'کلمهٔ بیدار'}
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

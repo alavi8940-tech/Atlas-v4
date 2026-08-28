@@ -98,6 +98,19 @@ interface SettingsState extends ModelSettings {
   /** حالت پلن: دستورات خطرناک ابتدا «در انتظار تأیید» میشوند (فقط دسکتاپ) */
   planMode: boolean
   setPlanMode: (v: boolean) => void
+  /** مدل ایمبدینگ (برای RAG / جستجوی معنایی) — پیش‌فرض nomic-embed-text در Ollama */
+  embeddingModel: string
+  setEmbeddingModel: (v: string) => void
+  /** همگام‌سازی: خاموش / محلی (export-import) / ریموت (REST) */
+  syncMode: "off" | "local" | "remote"
+  setSyncMode: (v: "off" | "local" | "remote") => void
+  syncEndpoint: string
+  setSyncEndpoint: (v: string) => void
+  syncToken: string
+  setSyncToken: (v: string) => void
+  /** عبارت بیدار برای حالت صوتی (wake word) */
+  wakePhrase: string
+  setWakePhrase: (v: string) => void
   /** بهروزرسانی جزئی تنظیمات مدل */
   setModel: (patch: Partial<ModelSettings>) => void
   /** برگرداندن تنظیمات مدل به پیشفرض */
@@ -121,6 +134,16 @@ export const useSettingsStore = create<SettingsState>()(
         set({ planMode: v })
         window.atlasAPI?.setPlan?.(v)
       },
+      embeddingModel: "nomic-embed-text",
+      setEmbeddingModel: v => set({ embeddingModel: v }),
+      syncMode: "local",
+      setSyncMode: v => set({ syncMode: v }),
+      syncEndpoint: "",
+      setSyncEndpoint: v => set({ syncEndpoint: v }),
+      syncToken: "",
+      setSyncToken: v => set({ syncToken: v }),
+      wakePhrase: "atlas",
+      setWakePhrase: v => set({ wakePhrase: v }),
       setModel: patch => set(patch),
       resetModel: () => set({ ...DEFAULT_MODEL_SETTINGS })
     }),
@@ -141,7 +164,12 @@ export const useSettingsStore = create<SettingsState>()(
         systemPrompt: s.systemPrompt,
         agentEnabled: s.agentEnabled,
         privacyMode: s.privacyMode,
-        planMode: s.planMode
+        planMode: s.planMode,
+        embeddingModel: s.embeddingModel,
+        syncMode: s.syncMode,
+        syncEndpoint: s.syncEndpoint,
+        syncToken: s.syncToken,
+        wakePhrase: s.wakePhrase
       })
     }
   )
