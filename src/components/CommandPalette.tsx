@@ -80,7 +80,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="glass-strong top-[18%] max-w-xl translate-y-0 gap-0 overflow-hidden rounded-2xl p-0" style={{ background: 'var(--bg-base)' }}>
+      <DialogContent className="glass-strong beam-border top-[18%] max-w-xl translate-y-0 gap-0 overflow-hidden rounded-2xl p-0" style={{ background: 'var(--bg-base)' }}>
         <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--glass-border)' }}>
           <Search size={16} style={{ color: 'var(--text-secondary)' }} />
           <input

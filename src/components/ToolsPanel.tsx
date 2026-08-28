@@ -39,7 +39,7 @@ export function ToolsPanel({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <div className="fixed inset-0 z-40 flex justify-start" role="dialog" aria-label="ابزارهای Atlas">
       <button aria-label="بستن" className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <aside className="glass-strong relative z-10 flex h-full w-[28rem] max-w-[94vw] flex-col rounded-none border-l p-4" style={{ background: 'var(--bg-base)' }}>
+      <aside className="glass-strong beam-border relative z-10 flex h-full w-[28rem] max-w-[94vw] flex-col rounded-none border-l p-4" style={{ background: 'var(--bg-base)' }}>
         <header className="mb-3 flex items-center gap-2">
           <span className="text-xl">🧰</span>
           <div className="min-w-0 flex-1">

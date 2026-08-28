@@ -146,7 +146,7 @@ export function Welcome(): React.JSX.Element {
 
       {/* کادر نوشتن — وصل به runtime */}
       <div className="rise-in stagger-2 w-full max-w-xl">
-        <div className="glass glass-accent-ring rounded-[1.6rem] p-2">
+        <div className="glass glass-accent-ring beam-border rounded-[1.6rem] p-2">
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 px-2 pb-2">
               {attachments.map((a, i) => (

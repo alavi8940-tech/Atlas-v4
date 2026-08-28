@@ -317,6 +317,22 @@ div[data-slot='atlas-audio-player'] canvas {
 .stagger-3 { animation-delay: 0.21s } .stagger-4 { animation-delay: 0.30s }
 .stagger-5 { animation-delay: 0.4s }  .stagger-6 { animation-delay: 0.52s }
 
+/* ─── BorderBeam (الگوی آماده: نور متحرک دور حاشیه) ─── */
+@property --beam-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes beam-spin { to { --beam-angle: 360deg; } }
+.beam-border { position: relative; }
+.beam-border::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  background: conic-gradient(from var(--beam-angle),
+    transparent 65%, color-mix(in srgb, var(--accent) 90%, white) 82%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: beam-spin 5s linear infinite;
+  pointer-events: none; opacity: 0.7;
+}
+.beam-border:hover::before { opacity: 1; }
+
 /* ─── نقطههای تایپ ─── */
 @keyframes glow-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 .typing-dot {

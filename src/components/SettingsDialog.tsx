@@ -196,7 +196,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-strong max-h-[86vh] overflow-y-auto rounded-[1.4rem] sm:max-w-lg" style={{ background: 'var(--bg-base)' }}>
+      <DialogContent className="glass-strong beam-border max-h-[86vh] overflow-y-auto rounded-[1.4rem] sm:max-w-lg" style={{ background: 'var(--bg-base)' }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-right">⚙️ تنظیمات Atlas</DialogTitle>
           <DialogDescription className="text-right">
