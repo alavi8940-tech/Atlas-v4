@@ -8,6 +8,7 @@ import { motion } from 'motion/react'
 import { SettingsDialog } from '@/components/SettingsDialog'
 import { SkillsStorePanel } from '@/components/SkillsStorePanel'
 import { useSkillsStore } from '@/stores/skillsStore'
+import { AppIcon } from '@/components/AppIcon'
 import {
   useConversationsStore, useMessagesStore, groupConversations
 } from '@/stores/conversationsStore'
@@ -70,8 +71,8 @@ export function Sidebar({ onClose }: { onClose: () => void }): React.JSX.Element
     <aside className="glass-strong flex h-full w-72 shrink-0 flex-col rounded-[1.6rem] m-3 ml-0 p-3">
       {/* لوگو */}
       <div className="rise-in mb-3 flex items-center gap-2.5 px-1 pt-1">
-        <div className="glass-accent-ring flex h-10 w-10 items-center justify-center rounded-2xl text-xl" style={{ background: 'var(--accent-soft)' }}>
-          🧭
+        <div className="glass-accent-ring flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: 'var(--accent-soft)' }}>
+          <AppIcon size={26} />
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight">Atlas</h1>

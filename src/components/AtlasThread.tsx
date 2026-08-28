@@ -13,6 +13,7 @@ import {
 import { ArrowDownIcon, CopyIcon, RefreshCwIcon, SendHorizontalIcon, SquareIcon, CheckIcon } from 'lucide-react'
 import { MarkdownText } from '@/components/assistant-ui/markdown-text'
 import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button'
+import { AppIcon } from '@/components/AppIcon'
 
 function UserBubble(): React.JSX.Element {
   return (
@@ -32,7 +33,7 @@ function AssistantBubble(): React.JSX.Element {
         style={{ background: 'var(--accent-soft)' }}
       >
         <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-          🧭 Atlas
+          <AppIcon size={16} className="rounded-sm" /> Atlas
         </div>
         <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
       </div>

@@ -58,4 +58,4 @@ export const CREATOR = {
 } as const
 
 /** پیام معرفی سازنده — وقتی کاربر دربارهٔ خالق Atlas میپرسد */
-export const CREATOR_INTRO = `${CREATOR.displayName} (${CREATOR.name}) سازندهٔ من است ${CREATOR.tagline} 🧭`
+export const CREATOR_INTRO = `${CREATOR.displayName} (${CREATOR.name}) سازندهٔ من است ${CREATOR.tagline}`
