@@ -21,7 +21,8 @@ import { useActivityStore, formatBackendActivity } from '@/stores/activityStore'
 import { usePlanStore } from '@/stores/planStore'
 import { useScheduleStore, isTaskDue } from '@/stores/scheduleStore'
 import { ToolsPanel } from '@/components/ToolsPanel'
-import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench } from 'lucide-react'
+import { CommandPalette } from '@/components/CommandPalette'
+import { PanelRightOpen, Sparkles, Bot, Globe, Terminal, Wrench, Search } from 'lucide-react'
 
 function App(): React.JSX.Element {
   const engine = useEngineInfo()
@@ -30,6 +31,7 @@ function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const agentEnabled = useSettingsStore(s => s.agentEnabled)
   const panel = useUiStore((s) => s.panel)
   const setPanel = useUiStore((s) => s.setPanel)
@@ -57,18 +59,26 @@ function App(): React.JSX.Element {
       const k = e.key.toLowerCase()
       if (k === 'b') { e.preventDefault(); setSidebarOpen(o => !o) }
       if (e.key === ',') { e.preventDefault(); setSettingsOpen(true) }
-      if (k === 'k') {
-        e.preventDefault()
-        // اگر اجرا در جریان است، رد شود
-        try {
-          if (runtime.thread.getState().isRunning) return
-        } catch { /* ignore */ }
-        createConv()
-      }
+      if (k === 'k') { e.preventDefault(); setPaletteOpen(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [runtime, createConv])
+  }, [runtime])
+
+  /* ─── هندلرهای رویداد برای پالت فرمان و دکمه‌ها ─── */
+  useEffect(() => {
+    const openSettings = (): void => setSettingsOpen(true)
+    const openTools = (): void => setToolsOpen(true)
+    const newChat = (): void => { try { createConv() } catch { /* ignore */ } }
+    window.addEventListener('atlas:open-settings', openSettings)
+    window.addEventListener('atlas:open-tools', openTools)
+    window.addEventListener('atlas:new-chat', newChat)
+    return () => {
+      window.removeEventListener('atlas:open-settings', openSettings)
+      window.removeEventListener('atlas:open-tools', openTools)
+      window.removeEventListener('atlas:new-chat', newChat)
+    }
+  }, [createConv, setToolsOpen, setSettingsOpen])
 
   /* ─── شروع/توقف مکالمه برای نمایش Welcome یا Thread ─── */
   useEffect(() => {
@@ -221,10 +231,18 @@ function App(): React.JSX.Element {
             >
               <Terminal size={13} /> ترمینال
             </button>
-            <span className="mr-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] glass" style={{ color: 'var(--text-secondary)' }}>
-              <Sparkles size={11} style={{ color: 'var(--accent)' }} /> Atlas v4 · {engine}
-              {conversations.length > 0 && ` · ${conversations.length} مکالمه`}
-            </span>
+            <span className="mr-auto hidden items-center gap-1.5 rounded-full px-3 py-1 text-[11px] glass sm:flex" style={{ color: 'var(--text-secondary)' }}>
+               <Sparkles size={11} style={{ color: 'var(--accent)' }} /> Atlas v4 · {engine}
+               {conversations.length > 0 && ` · ${conversations.length} مکالمه`}
+             </span>
+             <button
+               onClick={() => setPaletteOpen(true)}
+               className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px]"
+               style={{ color: 'var(--text-secondary)' }}
+               title="پالت فرمان (⌘K)"
+             >
+               <Search size={12} /> <kbd className="rounded bg-white/10 px-1">⌘K</kbd>
+             </button>
             {agentEnabled && (
               <button
                 onClick={() => setActivityOpen(o => !o)}
@@ -253,6 +271,7 @@ function App(): React.JSX.Element {
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AgentActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ToolsPanel open={toolsOpen} onClose={() => setToolsOpen(false)} />
     </AssistantRuntimeProvider>
   )

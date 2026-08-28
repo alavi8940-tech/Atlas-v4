@@ -7,13 +7,21 @@ import { useAui, useAuiState } from '@assistant-ui/react'
 import { ThinkingOrb } from '@/components/ThinkingOrb'
 import { ThemeGallery } from '@/components/ThemeGallery'
 import { useUiStore } from '@/stores/uiStore'
-import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText } from 'lucide-react'
+import { motion } from 'motion/react'
+import { Sparkles, Mic, Paperclip, Globe, Code2, SendHorizontalIcon, X, FileText, Boxes, Bot, ShieldCheck, Layers, Command, Wand2 } from 'lucide-react'
 
 const SUGGESTIONS = [
   { icon: '📊', text: 'وضعیت سیستمم رو تحلیل کن' },
   { icon: '🗂️', text: 'فایلهای بزرگ رو پیدا کن' },
   { icon: '📸', text: 'از صفحه عکس بگیر و خلاصه کن' },
   { icon: '💾', text: 'یه اسکریپت بکاپ بنویس' }
+]
+
+const CAPABILITIES = [
+  { icon: Boxes, title: 'چندمدل', desc: 'Anthropic · OpenAI · مدلهای محلی' },
+  { icon: Bot, title: 'عامل سیستم', desc: 'شل · فایل · موس · کیبورد' },
+  { icon: Sparkles, title: 'مهارتها', desc: 'فروشگاه مهارت‌های آماده' },
+  { icon: ShieldCheck, title: 'حریم خصوصی', desc: 'اجرای محلی · پلن و تأیید' },
 ]
 
 export function Welcome(): React.JSX.Element {
@@ -112,19 +120,27 @@ export function Welcome(): React.JSX.Element {
   }
 
   return (
-      <div className="flex h-full flex-col items-center justify-center gap-6 px-6 pb-4">
+    <div className="flex h-full flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-8">
       {/* گوی با افکت فکر کردن */}
-      <div className="rise-in">
-        <ThinkingOrb size={145} isThinking={isRunning} />
-      </div>
+      <motion.div
+        className="rise-in"
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+      >
+        <ThinkingOrb size={150} isThinking={isRunning} />
+      </motion.div>
 
       {/* سلام */}
       <div className="rise-in stagger-1 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">
-          {isRunning ? 'دارم فکر میکنم...' : 'چطور میتونم کمک کنم؟'}
+        <div className="mx-auto mb-3 flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-[11px] glass" style={{ color: 'var(--text-secondary)' }}>
+          <Command size={11} style={{ color: 'var(--accent)' }} /> Atlas v4 · ایجنت هوشمند محلی
+        </div>
+        <h1 className="bg-gradient-to-br from-[var(--accent)] via-[#c4b5fd] to-[#f0abfc] bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+          {isRunning ? 'دارم فکر میکنم…' : 'چطور میتونم کمک کنم؟'}
         </h1>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {isRunning ? 'لحظهای صبر کن ✨' : 'من Atlas هستم — به هر مدلی وصل میشم، سیستم تو رو میفهمم'}
+          {isRunning ? 'لحظهای صبر کن ✨' : 'به هر مدلی وصل میشم، سیستم تو رو میفهمم و کارها رو انجام میدم'}
         </p>
       </div>
 
@@ -189,6 +205,45 @@ export function Welcome(): React.JSX.Element {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* کارتهای قابلیتها */}
+      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+        {CAPABILITIES.map((c, i) => (
+          <motion.button
+            key={c.title}
+            onClick={() => {
+              if (c.title === 'مهارتها') window.dispatchEvent(new CustomEvent('atlas:open-skills'))
+              else if (c.title === 'عامل سیستم') window.dispatchEvent(new CustomEvent('atlas:open-tools'))
+              else if (c.title === 'حریم خصوصی') window.dispatchEvent(new CustomEvent('atlas:open-settings'))
+              else send('مدلهای موجود رو نشون بده و بهترین رو پیشنهاد بده')
+            }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 + i * 0.06 }}
+            whileHover={{ y: -4, scale: 1.03 }}
+            className="glass glass-hover group flex flex-col items-start gap-1.5 rounded-2xl p-3 text-right"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <c.icon size={17} />
+            </span>
+            <span className="text-sm font-semibold">{c.title}</span>
+            <span className="text-[10px] leading-tight" style={{ color: 'var(--text-secondary)' }}>{c.desc}</span>
+          </motion.button>
+        ))}
+      </div>
+
+      {/* ردیف دسترسی سریع */}
+      <div className="flex w-full max-w-2xl flex-wrap items-center justify-center gap-2">
+        <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-tools'))} className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <Wand2 size={13} style={{ color: 'var(--accent)' }} /> قابلیت‌های پیشرفته
+        </button>
+        <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-skills'))} className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <Sparkles size={13} style={{ color: 'var(--accent)' }} /> فروشگاه مهارتها
+        </button>
+        <button onClick={() => window.dispatchEvent(new CustomEvent('atlas:open-settings'))} className="glass glass-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <Layers size={13} style={{ color: 'var(--accent)' }} /> تنظیمات و تم
+        </button>
       </div>
 
       {/* گالری تمها */}
