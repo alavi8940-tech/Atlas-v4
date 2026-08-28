@@ -34,6 +34,7 @@ function App(): React.JSX.Element {
   const [activityOpen, setActivityOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const agentEnabled = useSettingsStore(s => s.agentEnabled)
+  const planMode = useSettingsStore(s => s.planMode)
   const panel = useUiStore((s) => s.panel)
   const setPanel = useUiStore((s) => s.setPanel)
   const [toolsOpen, setToolsOpen] = useState(false)
@@ -271,6 +272,21 @@ function App(): React.JSX.Element {
           <div className="min-h-0 flex-1">
             {panel === 'browser' ? <InternalBrowser /> : panel === 'terminal' ? <TerminalPanel /> : hasStarted ? <Thread /> : <Welcome />}
           </div>
+
+          <footer className="flex items-center gap-3 border-t px-4 py-1.5 text-[10px]" style={{ borderColor: 'var(--glass-border)', color: 'var(--text-secondary)' }}>
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: agentEnabled ? '#4ade80' : 'var(--text-secondary)' }} />
+              عامل {agentEnabled ? 'روشن' : 'خاموش'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: planMode ? 'var(--accent)' : 'var(--text-secondary)' }} />
+              پلن {planMode ? 'روشن' : 'خاموش'}
+            </span>
+            <span className="mr-auto hidden font-medium sm:inline" style={{ color: 'var(--text-primary)' }}>{engine}</span>
+            <span className="hidden items-center gap-1 sm:flex">
+              <kbd className="rounded bg-white/10 px-1">⌘K</kbd> فرمان
+            </span>
+          </footer>
         </main>
       </div>
 
