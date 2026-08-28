@@ -50,33 +50,9 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     uniform float hover;
     uniform float rot;
     uniform float hoverIntensity;
+    uniform float uVoice;
+    uniform float uPulse;
     varying vec2 vUv;
-
-    vec3 rgb2yiq(vec3 c) {
-      float y = dot(c, vec3(0.299, 0.587, 0.114));
-      float i = dot(c, vec3(0.596, -0.274, -0.322));
-      float q = dot(c, vec3(0.211, -0.523, 0.312));
-      return vec3(y, i, q);
-    }
-
-    vec3 yiq2rgb(vec3 c) {
-      float r = c.x + 0.956 * c.y + 0.621 * c.z;
-      float g = c.x - 0.272 * c.y - 0.647 * c.z;
-      float b = c.x - 1.106 * c.y + 1.703 * c.z;
-      return vec3(r, g, b);
-    }
-
-    vec3 adjustHue(vec3 color, float hueDeg) {
-      float hueRad = hueDeg * 3.14159265 / 180.0;
-      vec3 yiq = rgb2yiq(color);
-      float cosA = cos(hueRad);
-      float sinA = sin(hueRad);
-      float i = yiq.y * cosA - yiq.z * sinA;
-      float q = yiq.y * sinA + yiq.z * cosA;
-      yiq.y = i;
-      yiq.z = q;
-      return yiq2rgb(yiq);
-    }
 
     vec3 hash33(vec3 p3) {
       p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
@@ -114,55 +90,69 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       return dot(vec4(31.316), n);
     }
 
-    vec4 extractAlpha(vec3 colorIn) {
-      float a = max(max(colorIn.r, colorIn.g), colorIn.b);
-      return vec4(colorIn.rgb / (a + 1e-5), a);
+    // نویز چنداکتاوه برای جزئیات بیشتر سطح
+    float fbm(vec3 p) {
+      float v = 0.0;
+      float a = 0.5;
+      for (int i = 0; i < 5; i++) {
+        v += a * snoise3(p);
+        p *= 2.03;
+        a *= 0.5;
+      }
+      return v;
     }
-
-    const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
-    const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
-    const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
-    const float innerRadius = 0.6;
-    const float noiseScale = 0.65;
 
     float light1(float intensity, float attenuation, float dist) {
       return intensity / (1.0 + dist * attenuation);
     }
 
-    float light2(float intensity, float attenuation, float dist) {
-      return intensity / (1.0 + dist * dist * attenuation);
+    // پالت کسینوسی پُررنگ RGB (زنده و آر جی بی)
+    vec3 cosPal(float t) {
+      return 0.55 + 0.45 * cos(6.28318 * (vec3(1.0, 1.0, 1.0) * t + vec3(0.0, 0.33, 0.67)));
     }
 
-    vec4 draw(vec2 uv) {
-      vec3 color1 = adjustHue(baseColor1, hue);
-      vec3 color2 = adjustHue(baseColor2, hue);
-      vec3 color3 = adjustHue(baseColor3, hue);
+    vec4 extractAlpha(vec3 colorIn) {
+      float a = max(max(colorIn.r, colorIn.g), colorIn.b);
+      return vec4(colorIn.rgb / (a + 1e-5), a);
+    }
 
+    const float innerRadius = 0.6;
+    const float noiseScale = 0.65;
+
+    vec4 draw(vec2 uv) {
       float ang = atan(uv.y, uv.x);
       float len = length(uv);
-      float invLen = len > 0.0 ? 1.0 / len : 0.0;
+      float inv = len > 0.0 ? 1.0 / len : 0.0;
 
-      float n0 = snoise3(vec3(uv * noiseScale, iTime * 0.5)) * 0.5 + 0.5;
-      float r0 = mix(mix(innerRadius, 1.0, 0.4), mix(innerRadius, 1.0, 0.6), n0);
-      float d0 = distance(uv, (r0 * invLen) * uv);
-      float v0 = light1(1.0, 10.0, d0);
-      v0 *= smoothstep(r0 * 1.05, r0, len);
-      float cl = cos(ang + iTime * 2.0) * 0.5 + 0.5;
+      // سطح متلاطم چندلایه + اعوجاج با صدا
+      float n = fbm(vec3(uv * noiseScale * 1.7, iTime * 0.4));
+      float r0 = mix(innerRadius, 1.0, 0.5 + 0.5 * sin(n * 3.14159));
+      r0 += uVoice * 0.06 * sin(ang * 6.0 + iTime * 4.0);
+      float d0 = distance(uv, r0 * inv * uv);
+      float v0 = light1(1.0, 9.0, d0);
+      v0 *= smoothstep(r0 * 1.06, r0, len);
 
-      float a = iTime * -1.0;
-      vec2 pos = vec2(cos(a), sin(a)) * r0;
-      float d = distance(uv, pos);
-      float v1 = light2(1.5, 5.0, d);
-      v1 *= light1(1.0, 50.0, d0);
+      // چرخش رنگ با زمان + صدا -> طیف زندهٔ RGB
+      float hueT = hue / 360.0 + iTime * 0.03 + uVoice * 0.7 + n * 0.05;
+      vec3 base = cosPal(hueT);
+      vec3 col = base * v0;
 
-      float v2 = smoothstep(1.0, mix(innerRadius, 1.0, n0 * 0.5), len);
-      float v3 = smoothstep(innerRadius, mix(innerRadius, 1.0, 0.5), len);
+      // هالهٔ درخشان واکنش‌دهنده به صدا
+      float glow = exp(-len * 2.2) * (0.22 + uVoice * 0.95);
+      col += cosPal(hueT + 0.2) * glow;
 
-      vec3 col = mix(color1, color2, cl);
-      col = mix(color3, col, v0);
-      col = (col + v1) * v2 * v3;
+      // رینگ‌های موج (ripple) متحرک
+      float ripple = 0.5 + 0.5 * sin(len * 16.0 - iTime * 5.0);
+      col += cosPal(hueT + 0.5) * smoothstep(0.85, 1.0, ripple) * (0.12 + uVoice * 0.85) * smoothstep(r0, 1.0, len);
+
+      // جرقه‌های RGB (sparkle)
+      float sp = pow(max(snoise3(vec3(uv * 26.0, iTime * 1.2)), 0.0), 8.0);
+      col += vec3(1.0) * sp * (0.35 + uVoice);
+
+      // پالس انفجاری روی شنیدن ناگهانی صدا
+      col += cosPal(hueT + 0.8) * uPulse * smoothstep(0.95, 1.0, abs(sin(len * 6.0 - iTime * 2.0)));
+
       col = clamp(col, 0.0, 1.0);
-
       return extractAlpha(col);
     }
 
@@ -195,7 +185,6 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
 
     analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
-    // Calculate RMS (Root Mean Square) for better voice detection
     let sum = 0;
     for (let i = 0; i < dataArrayRef.current.length; i++) {
       const value = dataArrayRef.current[i] / 255;
@@ -203,85 +192,51 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     }
     const rms = Math.sqrt(sum / dataArrayRef.current.length);
 
-    // Apply sensitivity and boost the signal
     const level = Math.min(rms * voiceSensitivity * 3.0, 1);
-
     return level;
   };
 
-  // Stop microphone and cleanup
   const stopMicrophone = () => {
     try {
-      // Stop all tracks in the media stream
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => {
-          track.stop();
-        });
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
         mediaStreamRef.current = null;
       }
-
-      // Disconnect and cleanup audio nodes
       if (microphoneRef.current) {
         microphoneRef.current.disconnect();
         microphoneRef.current = null;
       }
-
       if (analyserRef.current) {
         analyserRef.current.disconnect();
         analyserRef.current = null;
       }
-
-      // Close audio context
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
         audioContextRef.current = null;
       }
-
       dataArrayRef.current = null;
-      console.log('Microphone stopped and cleaned up');
     } catch (error) {
       console.warn('Error stopping microphone:', error);
     }
   };
 
-  // Initialize microphone access
   const initMicrophone = async () => {
     try {
-      // Clean up any existing microphone first
       stopMicrophone();
-
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,  // Better for voice analysis
-          noiseSuppression: false,  // Better for voice analysis
-          autoGainControl: false,   // Better for voice analysis
-          sampleRate: 44100,
-        },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 44100 },
       });
-
-      // Store the stream reference for cleanup
       mediaStreamRef.current = stream;
-
       audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-
-      // Resume audio context if needed
-      if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-
+      if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
       analyserRef.current = audioContextRef.current.createAnalyser();
       microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
-
-      // Optimize for voice detection
-      analyserRef.current.fftSize = 512;  // Higher resolution
-      analyserRef.current.smoothingTimeConstant = 0.3;  // Less smoothing for responsiveness
+      analyserRef.current.fftSize = 512;
+      analyserRef.current.smoothingTimeConstant = 0.3;
       analyserRef.current.minDecibels = -90;
       analyserRef.current.maxDecibels = -10;
-
       microphoneRef.current.connect(analyserRef.current);
       dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-      console.log('Microphone initialized successfully');
       return true;
     } catch (error) {
       console.warn("Microphone access denied or not available:", error);
@@ -303,19 +258,14 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         alpha: true,
         premultipliedAlpha: false,
         antialias: true,
-        dpr: window.devicePixelRatio || 1
+        dpr: window.devicePixelRatio || 1,
       });
       glContext = rendererInstance.gl;
-      // Set clear color to transparent to avoid white flash
       glContext.clearColor(0, 0, 0, 0);
-      // Enable alpha blending for proper transparency
       glContext.enable(glContext.BLEND);
       glContext.blendFunc(glContext.SRC_ALPHA, glContext.ONE_MINUS_SRC_ALPHA);
 
-      // Clear any existing canvas
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
+      while (container.firstChild) container.removeChild(container.firstChild);
       container.appendChild(glContext.canvas as HTMLCanvasElement);
 
       const geometry = new Triangle(glContext);
@@ -324,17 +274,13 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         fragment: frag,
         uniforms: {
           iTime: { value: 0 },
-          iResolution: {
-            value: new Vec3(
-              glContext.canvas.width,
-              glContext.canvas.height,
-              glContext.canvas.width / glContext.canvas.height
-            ),
-          },
+          iResolution: { value: new Vec3(glContext.canvas.width, glContext.canvas.height, 1) },
           hue: { value: hue },
           hover: { value: 0 },
           rot: { value: 0 },
           hoverIntensity: { value: 0 },
+          uVoice: { value: 0 },
+          uPulse: { value: 0 },
         },
       });
 
@@ -345,37 +291,25 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         const dpr = window.devicePixelRatio || 1;
         const width = container.clientWidth;
         const height = container.clientHeight;
-
         if (width === 0 || height === 0) return;
-
         rendererInstance.setSize(width * dpr, height * dpr);
         (glContext.canvas as HTMLCanvasElement).style.width = width + "px";
         (glContext.canvas as HTMLCanvasElement).style.height = height + "px";
-
-        if (program) {
-          program.uniforms.iResolution.value.set(
-            glContext.canvas.width,
-            glContext.canvas.height,
-            glContext.canvas.width / glContext.canvas.height
-          );
-        }
+        program?.uniforms.iResolution.value.set(glContext.canvas.width, glContext.canvas.height, 1);
       };
       window.addEventListener("resize", resize);
       resize();
 
       let lastTime = 0;
       let currentRot = 0;
-      let voiceLevel = 0;
+      let lastLevel = 0;
+      let pulse = 0;
       const baseRotationSpeed = 0.3;
       let isMicrophoneInitialized = false;
 
-      // Initialize or stop microphone based on voice control setting
       if (enableVoiceControl) {
-        initMicrophone().then((success) => {
-          isMicrophoneInitialized = success;
-        });
+        initMicrophone().then((success) => { isMicrophoneInitialized = success; });
       } else {
-        // Stop microphone when voice control is disabled
         stopMicrophone();
         isMicrophoneInitialized = false;
       }
@@ -383,45 +317,37 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       const update = (t: number) => {
         rafId = requestAnimationFrame(update);
         if (!program) return;
-
         const dt = (t - lastTime) * 0.001;
         lastTime = t;
         program.uniforms.iTime.value = t * 0.001;
         program.uniforms.hue.value = hue;
 
-        // Handle voice input
         if (enableVoiceControl && isMicrophoneInitialized) {
-          voiceLevel = analyzeAudio();
+          const level = analyzeAudio();
+          // پالس انفجاری روی جهش ناگهانی صدا
+          if (level - lastLevel > 0.07) pulse = 1.0;
+          else pulse *= 0.9;
+          lastLevel = level;
 
-          // Notify parent component about voice detection
-          if (onVoiceDetected) {
-            onVoiceDetected(voiceLevel > 0.1);
-          }
+          if (onVoiceDetected) onVoiceDetected(level > 0.1);
 
-          // Map voice level to rotation speed with more visible effect
-          const voiceRotationSpeed = baseRotationSpeed + (voiceLevel * maxRotationSpeed * 2.0);
+          const voiceRotationSpeed = baseRotationSpeed + (level * maxRotationSpeed * 2.0);
+          if (level > 0.05) currentRot += dt * voiceRotationSpeed;
 
-          // Always rotate when there's voice input, even at low levels
-          if (voiceLevel > 0.05) {
-            currentRot += dt * voiceRotationSpeed;
-          }
-
-          // Use voice level to drive hover effects for visual feedback
-          program.uniforms.hover.value = Math.min(voiceLevel * 2.0, 1.0);
-          program.uniforms.hoverIntensity.value = Math.min(voiceLevel * maxHoverIntensity * 0.8, maxHoverIntensity);
+          program.uniforms.uVoice.value = level;
+          program.uniforms.uPulse.value = pulse;
+          program.uniforms.hover.value = Math.min(level * 2.0, 1.0);
+          program.uniforms.hoverIntensity.value = Math.min(level * maxHoverIntensity * 0.8, maxHoverIntensity);
         } else {
-          // Keep effects at 0 when not using voice control
+          program.uniforms.uVoice.value = 0;
+          program.uniforms.uPulse.value = 0;
           program.uniforms.hover.value = 0;
           program.uniforms.hoverIntensity.value = 0;
-          if (onVoiceDetected) {
-            onVoiceDetected(false);
-          }
+          if (onVoiceDetected) onVoiceDetected(false);
         }
 
         program.uniforms.rot.value = currentRot;
-
         if (rendererInstance && glContext) {
-          // Clear the canvas with transparent background before rendering
           glContext.clear(glContext.COLOR_BUFFER_BIT | glContext.DEPTH_BUFFER_BIT);
           rendererInstance.render({ scene: mesh });
         }
@@ -432,77 +358,39 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       return () => {
         cancelAnimationFrame(rafId);
         window.removeEventListener("resize", resize);
-
-        // Clean up canvas safely
         if (container && glContext && glContext.canvas) {
           try {
             const canvasEl = glContext.canvas as HTMLCanvasElement;
-            if (container.contains(canvasEl)) {
-              container.removeChild(canvasEl);
-            }
+            if (container.contains(canvasEl)) container.removeChild(canvasEl);
           } catch (error) {
             console.warn("Canvas cleanup error:", error);
           }
         }
-
-        // Stop microphone and clean up audio resources
         stopMicrophone();
-
-        if (glContext) {
-          glContext.getExtension("WEBGL_lose_context")?.loseContext();
-        }
+        glContext?.getExtension("WEBGL_lose_context")?.loseContext();
       };
-
     } catch (error) {
       console.error("Error initializing Voice Powered Orb:", error);
-      if (container && container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
-      return () => {
-        window.removeEventListener("resize", () => {});
-      };
+      if (container && container.firstChild) container.removeChild(container.firstChild);
+      return () => { window.removeEventListener("resize", () => {}); };
     }
-  }, [
-    hue,
-    enableVoiceControl,
-    voiceSensitivity,
-    maxRotationSpeed,
-    maxHoverIntensity,
-    vert,
-    frag
-  ]);
+  }, [hue, enableVoiceControl, voiceSensitivity, maxRotationSpeed, maxHoverIntensity, vert, frag]);
 
-  // Handle microphone state changes separately
   useEffect(() => {
     let isMounted = true;
-
     const handleMicrophoneState = async () => {
       if (enableVoiceControl) {
         await initMicrophone();
         if (!isMounted) return;
-        // Update the microphone state in the WebGL context if needed
       } else {
         stopMicrophone();
       }
     };
-
     handleMicrophoneState();
-
-    return () => {
-      isMounted = false;
-      // Don't stop microphone here as it will be handled by the main cleanup
-    };
+    return () => { isMounted = false; };
   }, [enableVoiceControl]);
 
   return (
-    <div
-      ref={ctnDom}
-      className={cn(
-        "w-full h-full relative",
-        className
-      )}
-    >
-
-    </div>
+    <div ref={ctnDom} className={cn("w-full h-full relative", className)} />
   );
 };
