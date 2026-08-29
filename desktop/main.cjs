@@ -2,9 +2,26 @@
  * Atlas Desktop — پروسهٔ اصلی الکترون
  * بدون منوی پیشفرض، لینکهای خارجی در مرورگر سیستم، زمینهٔ ایزوله
  */
-const { app, BrowserWindow, shell, Menu } = require('electron')
+const { app, BrowserWindow, shell, Menu, ipcMain, desktopCapturer } = require('electron')
 const path = require('node:path')
 const { registerBackend } = require('./backend.cjs')
+
+/** اسکرین‌شات واقعی از صفحه (در پروسهٔ اصلی؛ sandbox اجازهٔ DOM در preload را نمیدهد) */
+function registerScreenCapture() {
+  ipcMain.handle('atlas:screen-capture', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 },
+      })
+      if (!sources.length) return { ok: false, error: 'هیچ منبع صفحه‌نمایشی یافت نشد' }
+      const dataUrl = sources[0].thumbnail.toDataURL()
+      return { ok: true, dataUrl }
+    } catch (e) {
+      return { ok: false, error: e && e.message ? e.message : String(e) }
+    }
+  })
+}
 
 app.setName('Atlas')
 
@@ -52,6 +69,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   registerBackend()
+  registerScreenCapture()
   createWindow()
 })
 app.on('activate', () => {

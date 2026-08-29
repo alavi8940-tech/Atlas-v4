@@ -3,42 +3,13 @@
  * پل امن بین رندرر و پروسهٔ اصلی.
  * sandbox:true (اجرای ایزوله) + contextIsolation:true → فقط API محدود الکترون در دسترس است.
  */
-const { contextBridge, ipcRenderer, desktopCapturer } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
-/** گرفتن اسکرین‌شات از صفحهٔ اصلی از طریق desktopCapturer */
+/** گرفتن اسکرین‌شات از صفحهٔ اصلی — اجرا در پروسهٔ اصلی (sandbox اجازهٔ DOM در preload را نمیدهد) */
 async function captureScreen() {
-  const sources = await desktopCapturer.getSources({
-    types: ["screen"],
-    thumbnailSize: { width: 1920, height: 1080 },
-  });
-  if (!sources.length) throw new Error("هیچ منبع صفحه‌نمایشی یافت نشد");
-  const src = sources[0];
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: "desktop",
-        chromeMediaSourceId: src.id,
-      },
-    },
-  });
-  try {
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    await new Promise((res) => {
-      video.onloadedmetadata = () => res();
-    });
-    video.play();
-    await new Promise((r) => setTimeout(r, 300));
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/png");
-  } finally {
-    stream.getTracks().forEach((t) => t.stop());
-  }
+  const r = await ipcRenderer.invoke("atlas:screen-capture");
+  if (!r || !r.ok) throw new Error((r && r.error) || "اسکرین‌شات ناموفق بود");
+  return r.dataUrl;
 }
 
 contextBridge.exposeInMainWorld("atlasAPI", {
@@ -47,6 +18,8 @@ contextBridge.exposeInMainWorld("atlasAPI", {
   captureScreen,
   openExternal: (url) => ipcRenderer.send("atlas:open-external", url),
   setConfirm: (enabled) => ipcRenderer.invoke("atlas:set-confirm", enabled),
+  setPlan: (enabled) => ipcRenderer.invoke("atlas:set-plan", enabled),
+  proxy: (opts) => ipcRenderer.invoke("atlas:proxy", opts),
   onActivity: (cb) => {
     const listener = (_e, data) => cb(data);
     ipcRenderer.on("atlas:activity", listener);

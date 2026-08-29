@@ -283,10 +283,12 @@ const tools = {
   },
   mouse_scroll: async ({ dx = 0, dy = 0 }) => {
     const parts = [];
-    const down = Math.max(0, dy);
-    const up = Math.max(0, -dy);
-    for (let i = 0; i < down; i++) parts.push("click", "5");
-    for (let i = 0; i < up; i++) parts.push("click", "4");
+    // اسکرول عمودی: پایین = کلیک ۵، بالا = کلیک ۴
+    for (let i = 0; i < Math.max(0, dy); i++) parts.push("click", "5");
+    for (let i = 0; i < Math.max(0, -dy); i++) parts.push("click", "4");
+    // اسکرول افقی: راست = کلیک ۶، چپ = کلیک ۷
+    for (let i = 0; i < Math.max(0, dx); i++) parts.push("click", "6");
+    for (let i = 0; i < Math.max(0, -dx); i++) parts.push("click", "7");
     if (parts.length === 0) return { stdout: "", stderr: "", exitCode: 0 };
     return runFile("xdotool", parts);
   },

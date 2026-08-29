@@ -13,8 +13,15 @@ const COLOR: Record<Line['kind'], string> = {
   sys: 'var(--text-secondary)',
 }
 
+function detectElectron(): boolean {
+  if (typeof window === 'undefined') return false
+  if (Boolean(window.atlasAPI)) return true
+  // فال‌بک: شناسایی محیط الکترون از userAgent (اگر atlasAPI هنوز ست نشده باشد)
+  return typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)
+}
+
 export function TerminalPanel(): React.JSX.Element {
-  const isElectron = typeof window !== 'undefined' && Boolean(window.atlasAPI)
+  const isElectron = detectElectron()
   const [lines, setLines] = useState<Line[]>([
     { kind: 'sys', text: isElectron ? 'ترمینال محلی آماده است — دستورت را بنویس:' : 'ترمینال فقط در نسخهٔ دسکتاپ در دسترس است.' },
   ])

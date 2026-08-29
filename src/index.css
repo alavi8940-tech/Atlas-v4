@@ -5,6 +5,45 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* ═════════ متغیرهای تم استاندارد (shadcn / Tailwind v4) ═════════
+   کامپوننتهای Dialog/Button/Select از متغیرهای --color-* استفاده
+   میکنند که قبلاً تعریف نشده بودند → محتوای دیالوگها/دراپ‌داونها
+   شفاف و نامرئی میشد. اینجا به متغیرهای Atlas (در هر تم) وصل شده‌اند
+   تا در همهٔ ۸ تم به‌درستی تطبیق یابند. */
+@theme {
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+
+  --color-card: color-mix(in srgb, var(--bg-base) 82%, var(--text-primary) 4%);
+  --color-card-foreground: var(--text-primary);
+
+  --color-popover: color-mix(in srgb, var(--bg-base) 88%, var(--text-primary) 10%);
+  --color-popover-foreground: var(--text-primary);
+
+  --color-primary: var(--accent);
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --color-secondary-foreground: var(--text-primary);
+
+  --color-muted: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --color-muted-foreground: var(--text-secondary);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: #ffffff;
+
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: var(--glass-border);
+  --color-input: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  --color-ring: var(--accent);
+}
+
 /* ─── فونت‌ها ─── */
 @font-face {
   font-family: 'Vazirmatn';
